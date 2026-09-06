@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optimizador de Cortes - Ventanas</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --paper:#F5F3EF;
+    --panel:#FFFFFF;
+    --ink:#23262B;
+    --ink-soft:#5B5F66;
+    --steel:#3E5C76;
+    --steel-dark:#2C4256;
+    --orange:#E0621D;
+    --alu:#C9CCD1;
+    --alu-line:#AEB2B9;
+    --good:#4C7A5E;
+    --border:#E1DED6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Space Grotesk', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:820px; margin:0 auto; padding:24px 16px 60px; }
+
+  header{ margin-bottom:20px; }
+  header h1{ font-size:1.4rem; font-weight:700; margin:0 0 4px; letter-spacing:-0.01em; }
+  header p{ margin:0; color:var(--ink-soft); font-size:0.88rem; line-height:1.4; }
+
+  .tabs{ display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--border); }
+  .tab{
+    padding:10px 16px; font-size:0.85rem; font-weight:600; color:var(--ink-soft);
+    cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .tab.active{ color:var(--steel-dark); border-bottom-color:var(--steel-dark); }
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:14px; }
+  .card h2{ font-size:0.76rem; font-weight:600; color:var(--ink-soft); margin:0 0 12px; padding-bottom:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  .card h2 .chev{ font-size:0.7rem; color:var(--ink-soft); }
+
+  .config-grid{ display:flex; gap:14px; flex-wrap:wrap; }
+  .cfg-field{ flex:1; min-width:120px; }
+  .cfg-field label{ display:block; font-size:0.72rem; color:var(--ink-soft); margin-bottom:5px; }
+  .cfg-field .input-row{ display:flex; align-items:baseline; border-bottom:2px solid var(--steel); padding-bottom:3px; }
+  .cfg-field input{ border:none; background:none; font-family:'IBM Plex Mono', monospace; font-size:1.02rem; font-weight:600; color:var(--ink); width:100%; outline:none; padding:0; }
+  .cfg-field .unit{ font-family:'IBM Plex Mono', monospace; font-size:0.78rem; color:var(--ink-soft); margin-left:4px; }
+
+  .tbl-scroll{ overflow-x:auto; }
+  table.win{ width:100%; border-collapse:collapse; min-width:680px; }
+  table.win th{ text-align:left; font-size:0.68rem; color:var(--ink-soft); font-weight:600; padding:0 6px 8px 0; white-space:nowrap; }
+  table.win td{ padding:5px 6px 5px 0; vertical-align:middle; }
+  table.win input{ width:100%; border:none; border-bottom:1px solid var(--border); background:none; font-family:'IBM Plex Mono', monospace; font-size:0.88rem; color:var(--ink); padding:6px 2px; outline:none; }
+  table.win input:focus{ border-bottom-color:var(--steel); }
+  table.win input.qty-input{ text-align:center; }
+  .del-btn{ background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:1rem; line-height:1; padding:4px 6px; border-radius:6px; }
+  .del-btn:hover{ background:#F2E4DC; color:var(--orange); }
+
+  .add-row-btn{ margin-top:10px; background:none; border:1px dashed var(--alu-line); color:var(--steel-dark); font-family:'Space Grotesk', sans-serif; font-size:0.82rem; font-weight:600; padding:8px 14px; border-radius:7px; cursor:pointer; width:100%; }
+  .add-row-btn:hover{ border-color:var(--steel); background:#EDF1F4; }
+
+  .calc-btn{ width:100%; background:var(--steel-dark); color:#fff; border:none; padding:14px; border-radius:9px; font-family:'Space Grotesk', sans-serif; font-size:0.98rem; font-weight:600; cursor:pointer; margin-top:6px; }
+  .calc-btn:hover{ background:var(--steel); }
+
+  .save-row{ display:flex; gap:8px; margin-top:10px; }
+  .save-row input{ flex:1; border:1px solid var(--border); border-radius:7px; padding:10px 12px; font-family:'Space Grotesk', sans-serif; font-size:0.88rem; outline:none; }
+  .save-row input:focus{ border-color:var(--steel); }
+  .save-btn{ background:var(--good); color:#fff; border:none; padding:10px 16px; border-radius:7px; font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:0.85rem; cursor:pointer; white-space:nowrap; }
+  .save-btn:hover{ opacity:0.9; }
+
+  .group-summary{ display:flex; gap:0; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:10px; }
+  .group-summary .stat{ flex:1; background:var(--panel); padding:12px 10px; border-right:1px solid var(--border); }
+  .group-summary .stat:last-child{ border-right:none; }
+  .group-summary .stat .num{ font-family:'IBM Plex Mono', monospace; font-size:1.25rem; font-weight:600; color:var(--steel-dark); display:block; }
+  .group-summary .stat.waste .num{ color:var(--orange); }
+  .group-summary .stat.eff .num{ color:var(--good); }
+  .group-summary .stat .lbl{ font-size:0.66rem; color:var(--ink-soft); margin-top:2px; display:block; }
+
+  .group-title{ font-size:0.95rem; font-weight:700; margin:22px 0 8px; padding-bottom:6px; border-bottom:2px solid var(--steel-dark); }
+  .group-title:first-child{ margin-top:0; }
+
+  .bar-block{ margin-bottom:10px; }
+  .bar-title{ font-family:'IBM Plex Mono', monospace; font-size:0.74rem; color:var(--ink-soft); margin-bottom:4px; display:flex; justify-content:space-between; }
+  .bar-title .waste-tag{ color:var(--orange); }
+  .bar-visual{ display:flex; height:38px; border-radius:6px; overflow:hidden; border:1px solid var(--alu-line);
+    background:repeating-linear-gradient(90deg, var(--alu), var(--alu) 2px, #D6D9DD 2px, #D6D9DD 4px); }
+  .segment{ position:relative; display:flex; align-items:center; justify-content:center; border-right:2px solid var(--paper);
+    color:#fff; font-family:'IBM Plex Mono', monospace; font-size:0.66rem; font-weight:600; overflow:hidden; white-space:nowrap; min-width:0; }
+  .segment .seg-label{ padding:0 3px; overflow:hidden; text-overflow:ellipsis; }
+  .segment.leftover{ background:transparent !important; color:var(--ink-soft); font-weight:500; }
+  .segment:last-child{ border-right:none; }
+
+  .empty-note{ color:var(--ink-soft); font-size:0.85rem; text-align:center; padding:20px 0; }
+
+  .history-item{ background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:12px 14px; margin-bottom:10px; cursor:pointer; }
+  .history-item:hover{ border-color:var(--steel); }
+  .history-item .hi-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+  .history-item .hi-name{ font-weight:600; font-size:0.92rem; }
+  .history-item .hi-date{ font-family:'IBM Plex Mono', monospace; font-size:0.72rem; color:var(--ink-soft); }
+  .history-item .hi-stats{ font-size:0.78rem; color:var(--ink-soft); display:flex; gap:14px; flex-wrap:wrap; }
+  .history-item .hi-stats b{ color:var(--steel-dark); font-family:'IBM Plex Mono', monospace; }
+  .history-actions{ display:flex; gap:8px; margin-top:8px; }
+  .history-actions button{ font-size:0.76rem; padding:5px 10px; border-radius:6px; border:1px solid var(--border); background:none; cursor:pointer; color:var(--ink-soft); }
+  .history-actions button:hover{ border-color:var(--orange); color:var(--orange); }
+
+  footer{ text-align:center; font-size:0.72rem; color:var(--ink-soft); margin-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Optimizador de Cortes — Ventanas</h1>
+    <p>Mete las medidas de las ventanas del día y calcula cuántos perfiles cortar de Marco, Hoja/Batiente, Malla y Traslape.</p>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="calc">Calcular</div>
+    <div class="tab" data-tab="history">Historial</div>
+  </div>
+
+  <div class="view active" id="view-calc">
+
+    <div class="card">
+      <h2>Configuración <span class="chev" id="cfgChev">▲</span></h2>
+      <div id="cfgBody">
+        <div class="config-grid">
+          <div class="cfg-field">
+            <label>Largo del lance</label>
+            <div class="input-row"><input type="number" id="barLength" value="5.80" step="0.01" min="0.1"><span class="unit">m</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Kerf (pérdida por corte)</label>
+            <div class="input-row"><input type="number" id="kerf" value="0" step="0.001" min="0"><span class="unit">m</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Hojas por ventana</label>
+            <div class="input-row"><input type="number" id="hojasPorVentana" value="2" step="1" min="0"><span class="unit">pz</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Mallas por ventana</label>
+            <div class="input-row"><input type="number" id="mallasPorVentana" value="1" step="1" min="0"><span class="unit">pz</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Traslapes por ventana</label>
+            <div class="input-row"><input type="number" id="traslapesPorVentana" value="2" step="1" min="0"><span class="unit">pz</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Contramarcos por ventana</label>
+            <div class="input-row"><input type="number" id="contramarcosPorVentana" value="1" step="1" min="0"><span class="unit">pz</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Ventanas del trabajo</h2>
+      <div class="tbl-scroll">
+        <table class="win">
+          <thead>
+            <tr>
+              <th>Ancho</th><th>Alto</th><th>Ancho H</th><th>Alto H</th><th>Ancho M</th><th>Alto M</th><th>Traslape</th><th>Cant.</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="winBody"></tbody>
+        </table>
+      </div>
+      <button class="add-row-btn" id="addRowBtn">+ Agregar tamaño de ventana</button>
+    </div>
+
+    <button class="calc-btn" id="calcBtn">Calcular cortes</button>
+
+    <div id="results" style="margin-top:20px;"></div>
+
+    <div class="card" id="saveCard" style="display:none;">
+      <h2>Guardar este trabajo</h2>
+      <div class="save-row">
+        <input type="text" id="jobName" placeholder="Nombre del trabajo (ej. Casa Suyapa)">
+        <button class="save-btn" id="saveBtn">Guardar</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="view" id="view-history">
+    <div id="historyList"></div>
+  </div>
+
+  <footer>Marco, Hoja/Batiente, Malla y Traslape se cortan por separado — nunca se mezclan entre sí.</footer>
+</div>
+
+<script>
+const PALETTE = ['#3E5C76','#E0621D','#4C7A5E','#8B5FBF','#C9A227','#2C4256','#B0473A','#3E8E8B'];
+const FIELDS = ['ancho','alto','anchoH','altoH','anchoM','altoM','traslape','qty'];
+
+const winBody = document.getElementById('winBody');
+const addRowBtn = document.getElementById('addRowBtn');
+const calcBtn = document.getElementById('calcBtn');
+const resultsEl = document.getElementById('results');
+const saveCard = document.getElementById('saveCard');
+const saveBtn = document.getElementById('saveBtn');
+const jobNameInput = document.getElementById('jobName');
+const cfgBody = document.getElementById('cfgBody');
+const cfgChev = document.getElementById('cfgChev');
+
+document.querySelector('.card h2').addEventListener('click', () => {
+  const open = cfgBody.style.display !== 'none';
+  cfgBody.style.display = open ? 'none' : 'block';
+  cfgChev.textContent = open ? '▼' : '▲';
+});
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('view-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'history') renderHistory();
+  });
+});
+
+function addWinRow(data){
+  data = data || {};
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="number" step="0.001" class="f-ancho" value="${data.ancho ?? ''}" placeholder="2.00"></td>
+    <td><input type="number" step="0.001" class="f-alto" value="${data.alto ?? ''}" placeholder="2.10"></td>
+    <td><input type="number" step="0.001" class="f-anchoH" value="${data.anchoH ?? ''}" placeholder="1.00"></td>
+    <td><input type="number" step="0.001" class="f-altoH" value="${data.altoH ?? ''}" placeholder="2.02"></td>
+    <td><input type="number" step="0.001" class="f-anchoM" value="${data.anchoM ?? ''}" placeholder="0.99"></td>
+    <td><input type="number" step="0.001" class="f-altoM" value="${data.altoM ?? ''}" placeholder="2.02"></td>
+    <td><input type="number" step="0.001" class="f-traslape" value="${data.traslape ?? ''}" placeholder="2.02"></td>
+    <td><input type="number" step="1" min="1" class="f-qty qty-input" value="${data.qty ?? 1}"></td>
+    <td><button class="del-btn" title="Quitar">✕</button></td>
+  `;
+  tr.querySelector('.del-btn').addEventListener('click', () => { tr.remove(); saveDraft(); afterCalcInvalidate(); });
+  tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => { saveDraft(); afterCalcInvalidate(); }));
+  winBody.appendChild(tr);
+}
+
+function afterCalcInvalidate(){
+  saveCard.style.display = 'none';
+}
+
+addRowBtn.addEventListener('click', () => { addWinRow(); saveDraft(); });
+
+function readConfig(){
+  return {
+    barLength: parseFloat(document.getElementById('barLength').value) || 5.80,
+    kerf: parseFloat(document.getElementById('kerf').value) || 0,
+    hojas: parseInt(document.getElementById('hojasPorVentana').value, 10) || 0,
+    mallas: parseInt(document.getElementById('mallasPorVentana').value, 10) || 0,
+    traslapes: parseInt(document.getElementById('traslapesPorVentana').value, 10) || 0,
+    contramarcos: parseInt(document.getElementById('contramarcosPorVentana').value, 10) || 0
+  };
+}
+
+function readRows(){
+  const rows = Array.from(winBody.querySelectorAll('tr'));
+  return rows.map(row => ({
+    ancho: parseFloat(row.querySelector('.f-ancho').value) || 0,
+    alto: parseFloat(row.querySelector('.f-alto').value) || 0,
+    anchoH: parseFloat(row.querySelector('.f-anchoH').value) || 0,
+    altoH: parseFloat(row.querySelector('.f-altoH').value) || 0,
+    anchoM: parseFloat(row.querySelector('.f-anchoM').value) || 0,
+    altoM: parseFloat(row.querySelector('.f-altoM').value) || 0,
+    traslape: parseFloat(row.querySelector('.f-traslape').value) || 0,
+    qty: parseInt(row.querySelector('.f-qty').value, 10) || 0
+  })).filter(r => r.qty > 0);
+}
+
+function optimize(items, barLength, kerf){
+  items = items.slice().sort((a,b) => b.len - a.len);
+  const bars = [];
+  items.forEach(item => {
+    let placed = false;
+    for (const bar of bars){
+      const needed = item.len + (bar.items.length > 0 ? kerf : 0);
+      if (needed <= bar.remaining + 1e-9){
+        bar.items.push(item);
+        bar.remaining -= needed;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed){
+      bars.push({ remaining: barLength - item.len, items: [item] });
+    }
+  });
+  return bars;
+}
+
+function fmt(n){
+  return (Math.round(n * 1000) / 1000).toString().replace(/\.?0+$/,'') || '0';
+}
+
+function buildGroups(rows, cfg){
+  const groups = {
+    'Contramarco': [],
+    'Hoja / Batiente': [],
+    'Malla': [],
+    'Traslape': []
+  };
+  rows.forEach(r => {
+    for (let i=0;i<r.qty;i++){
+      if (r.ancho>0) for(let c=0;c<cfg.contramarcos;c++) groups['Contramarco'].push({len:r.ancho, label:'Ancho C', color:0});
+      if (r.alto>0) for(let c=0;c<cfg.contramarcos;c++) groups['Contramarco'].push({len:r.alto, label:'Alto C', color:1});
+      const hojaMult = cfg.hojas * 2; // 2 piezas (anchoH+altoH) por hoja
+      if (r.anchoH>0) for(let h=0;h<cfg.hojas;h++) groups['Hoja / Batiente'].push({len:r.anchoH, label:'Ancho H', color:0});
+      if (r.altoH>0) for(let h=0;h<cfg.hojas;h++) groups['Hoja / Batiente'].push({len:r.altoH, label:'Alto H', color:1});
+      if (r.anchoM>0) for(let m=0;m<cfg.mallas;m++) groups['Malla'].push({len:r.anchoM, label:'Ancho M', color:0});
+      if (r.altoM>0) for(let m=0;m<cfg.mallas;m++) groups['Malla'].push({len:r.altoM, label:'Alto M', color:1});
+      if (r.traslape>0) for(let t=0;t<cfg.traslapes;t++) groups['Traslape'].push({len:r.traslape, label:'Traslape', color:0});
+    }
+  });
+  return groups;
+}
+
+function computeAll(rows, cfg){
+  const groups = buildGroups(rows, cfg);
+  const out = {};
+  let totalBars = 0;
+  Object.keys(groups).forEach(gname => {
+    const items = groups[gname];
+    if (items.length === 0){ out[gname] = null; return; }
+    const bars = optimize(items, cfg.barLength, cfg.kerf);
+    const totalPieceLen = items.reduce((s,i)=>s+i.len,0);
+    const totalMaterial = bars.length * cfg.barLength;
+    const waste = totalMaterial - totalPieceLen;
+    out[gname] = { bars, totalPieceLen, totalMaterial, waste, count: items.length };
+    totalBars += bars.length;
+  });
+  return { groups: out, totalBars };
+}
+
+function renderResults(result){
+  const groups = result.groups;
+  const anyGroup = Object.values(groups).some(g => g !== null);
+  if (!anyGroup){
+    resultsEl.innerHTML = '<p class="empty-note">Agrega al menos una ventana con medidas y cantidad válidas.</p>';
+    saveCard.style.display = 'none';
+    return;
+  }
+
+  let html = `<div class="group-summary">
+    <div class="stat"><span class="num">${result.totalBars}</span><span class="lbl">lances totales</span></div>
+  </div>`;
+
+  Object.keys(groups).forEach(gname => {
+    const g = groups[gname];
+    if (!g) return;
+    const eff = (g.totalPieceLen / g.totalMaterial) * 100;
+    html += `<div class="group-title">${gname}</div>`;
+    html += `<div class="group-summary">
+      <div class="stat"><span class="num">${g.bars.length}</span><span class="lbl">lances</span></div>
+      <div class="stat waste"><span class="num">${fmt(g.waste)} m</span><span class="lbl">sobrante</span></div>
+      <div class="stat eff"><span class="num">${eff.toFixed(1)}%</span><span class="lbl">aprovechamiento</span></div>
+    </div>`;
+    g.bars.forEach((bar, i) => {
+      html += `<div class="bar-block">
+        <div class="bar-title"><span>Lance ${i+1} — ${bar.items.length} pz</span><span class="waste-tag">sobra ${fmt(bar.remaining)} m</span></div>
+        <div class="bar-visual">`;
+      bar.items.forEach(item => {
+        const pct = (item.len / result.barLength) * 100;
+        const color = PALETTE[item.color % PALETTE.length];
+        html += `<div class="segment" style="width:${pct}%; background:${color};" title="${item.label} · ${fmt(item.len)} m"><span class="seg-label">${fmt(item.len)}</span></div>`;
+      });
+      if (bar.remaining > 0.001){
+        const pct = (bar.remaining / result.barLength) * 100;
+        html += `<div class="segment leftover" style="width:${pct}%;" title="Sobrante · ${fmt(bar.remaining)} m"><span class="seg-label">${fmt(bar.remaining)}</span></div>`;
+      }
+      html += `</div></div>`;
+    });
+  });
+
+  resultsEl.innerHTML = html;
+  saveCard.style.display = 'block';
+}
+
+let lastResult = null;
+let lastCfg = null;
+let lastRows = null;
+
+calcBtn.addEventListener('click', () => {
+  const cfg = readConfig();
+  const rows = readRows();
+  const result = computeAll(rows, cfg);
+  result.barLength = cfg.barLength;
+  lastResult = result;
+  lastCfg = cfg;
+  lastRows = rows;
+  renderResults(result);
+  saveDraft();
+});
+
+saveBtn.addEventListener('click', async () => {
+  if (!lastResult) return;
+  const name = jobNameInput.value.trim() || 'Trabajo sin nombre';
+  const job = {
+    id: Date.now(),
+    name,
+    date: new Date().toLocaleDateString('es-HN', { day:'2-digit', month:'2-digit', year:'numeric' }),
+    cfg: lastCfg,
+    rows: lastRows,
+    totalBars: lastResult.totalBars,
+    groupSummary: Object.keys(lastResult.groups)
+      .filter(g => lastResult.groups[g])
+      .map(g => ({ name: g, bars: lastResult.groups[g].bars.length }))
+  };
+  try{
+    const listRes = await window.storage.get('trabajos-historial', false).catch(() => null);
+    const list = listRes && listRes.value ? JSON.parse(listRes.value) : [];
+    list.unshift(job);
+    await window.storage.set('trabajos-historial', JSON.stringify(list), false);
+    jobNameInput.value = '';
+    saveBtn.textContent = 'Guardado ✓';
+    setTimeout(() => saveBtn.textContent = 'Guardar', 1500);
+  } catch(e){
+    saveBtn.textContent = 'Error al guardar';
+    setTimeout(() => saveBtn.textContent = 'Guardar', 1500);
+  }
+});
+
+async function renderHistory(){
+  const historyList = document.getElementById('historyList');
+  historyList.innerHTML = '<p class="empty-note">Cargando...</p>';
+  try{
+    const listRes = await window.storage.get('trabajos-historial', false).catch(() => null);
+    const list = listRes && listRes.value ? JSON.parse(listRes.value) : [];
+    if (list.length === 0){
+      historyList.innerHTML = '<p class="empty-note">Todavía no has guardado ningún trabajo.</p>';
+      return;
+    }
+    historyList.innerHTML = '';
+    list.forEach(job => {
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      const statsHtml = job.groupSummary.map(g => `<span>${g.name}: <b>${g.bars}</b></span>`).join('');
+      div.innerHTML = `
+        <div class="hi-top"><span class="hi-name">${job.name}</span><span class="hi-date">${job.date}</span></div>
+        <div class="hi-stats">${statsHtml}<span>Total: <b>${job.totalBars} lances</b></span></div>
+        <div class="history-actions">
+          <button class="load-btn">Volver a abrir</button>
+          <button class="del-hist-btn">Eliminar</button>
+        </div>
+      `;
+      div.querySelector('.load-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        loadJob(job);
+      });
+      div.querySelector('.del-hist-btn').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const newList = list.filter(j => j.id !== job.id);
+        await window.storage.set('trabajos-historial', JSON.stringify(newList), false);
+        renderHistory();
+      });
+      historyList.appendChild(div);
+    });
+  } catch(e){
+    historyList.innerHTML = '<p class="empty-note">No se pudo cargar el historial.</p>';
+  }
+}
+
+function loadJob(job){
+  document.getElementById('barLength').value = job.cfg.barLength;
+  document.getElementById('kerf').value = job.cfg.kerf;
+  document.getElementById('hojasPorVentana').value = job.cfg.hojas;
+  document.getElementById('mallasPorVentana').value = job.cfg.mallas;
+  document.getElementById('traslapesPorVentana').value = job.cfg.traslapes;
+  document.getElementById('contramarcosPorVentana').value = job.cfg.contramarcos ?? 1;
+  winBody.innerHTML = '';
+  job.rows.forEach(r => addWinRow(r));
+  document.querySelector('.tab[data-tab="calc"]').click();
+  const result = computeAll(job.rows, job.cfg);
+  result.barLength = job.cfg.barLength;
+  lastResult = result; lastCfg = job.cfg; lastRows = job.rows;
+  renderResults(result);
+  jobNameInput.value = job.name;
+}
+
+async function saveDraft(){
+  try{
+    const draft = { cfg: readConfig(), rows: readRows() };
+    if (window.storage) await window.storage.set('trabajo-borrador', JSON.stringify(draft), false);
+  } catch(e){}
+}
+
+async function loadDraft(){
+  try{
+    if (window.storage){
+      const res = await window.storage.get('trabajo-borrador', false);
+      if (res && res.value){
+        const draft = JSON.parse(res.value);
+        if (draft.cfg){
+          document.getElementById('barLength').value = draft.cfg.barLength ?? 5.80;
+          document.getElementById('kerf').value = draft.cfg.kerf ?? 0;
+          document.getElementById('hojasPorVentana').value = draft.cfg.hojas ?? 2;
+          document.getElementById('mallasPorVentana').value = draft.cfg.mallas ?? 1;
+          document.getElementById('traslapesPorVentana').value = draft.cfg.traslapes ?? 2;
+          document.getElementById('contramarcosPorVentana').value = draft.cfg.contramarcos ?? 1;
+        }
+        if (draft.rows && draft.rows.length){
+          draft.rows.forEach(r => addWinRow(r));
+          return;
+        }
+      }
+    }
+  } catch(e){}
+  addWinRow({ ancho:2.00, alto:2.10, anchoH:1.00, altoH:2.02, anchoM:0.99, altoM:2.02, traslape:2.02, qty:1 });
+}
+
+loadDraft();
+</script>
+</body>
+</html>
