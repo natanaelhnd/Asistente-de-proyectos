@@ -55,15 +55,19 @@
   .cfg-field .input-row{ display:flex; align-items:baseline; border-bottom:2px solid var(--steel); padding-bottom:3px; }
   .cfg-field input{ border:none; background:none; font-family:'IBM Plex Mono', monospace; font-size:1.02rem; font-weight:600; color:var(--ink); width:100%; outline:none; padding:0; }
   .cfg-field .unit{ font-family:'IBM Plex Mono', monospace; font-size:0.78rem; color:var(--ink-soft); margin-left:4px; }
+  .cfg-field input[readonly]{ color:var(--steel-dark); }
+  .cfg-field .input-row:has(input[readonly]){ background:#F1F3F5; border-bottom-color:#C9CCD1; padding:3px 6px; margin:0 -6px; border-radius:4px 4px 0 0; }
 
   .tbl-scroll{ overflow-x:auto; }
-  table.win{ width:100%; border-collapse:collapse; min-width:680px; }
+  table.win{ width:100%; border-collapse:collapse; min-width:830px; }
   table.win th{ text-align:left; font-size:0.68rem; color:var(--ink-soft); font-weight:600; padding:0 6px 8px 0; white-space:nowrap; }
   table.win td{ padding:5px 6px 5px 0; vertical-align:middle; }
   table.win input{ width:100%; border:none; border-bottom:1px solid var(--border); background:none; font-family:'IBM Plex Mono', monospace; font-size:0.88rem; color:var(--ink); padding:6px 2px; outline:none; }
   table.win input:focus{ border-bottom-color:var(--steel); }
 
   table.win input[readonly]{ background:#F1F3F5; color:var(--steel-dark); cursor:default; border-bottom-color:#C9CCD1; }
+  table.win select.f-tipo{ width:100%; min-width:150px; border:none; border-bottom:1px solid var(--border); background:none; font-family:'Space Grotesk', sans-serif; font-size:0.82rem; color:var(--ink); padding:6px 2px; outline:none; }
+  table.win select.f-tipo:focus{ border-bottom-color:var(--steel); }
   table.win input.qty-input{ text-align:center; }
   .del-btn{ background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:1rem; line-height:1; padding:4px 6px; border-radius:6px; }
   .del-btn:hover{ background:#F2E4DC; color:var(--orange); }
@@ -142,6 +146,7 @@
 
   <div class="tabs">
     <div class="tab active" data-tab="calc">Calcular</div>
+    <div class="tab" data-tab="configs">Configuraciones</div>
     <div class="tab" data-tab="history">Historial</div>
   </div>
 
@@ -150,6 +155,13 @@
     <div class="card">
       <h2>Configuración <span class="chev" id="cfgChev">▲</span></h2>
       <div id="cfgBody">
+        <div class="cfg-select-row" style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.72rem; color:var(--ink-soft); margin-bottom:5px;">Configuración activa</label>
+          <select id="activeConfigSelect" style="width:100%; border:1px solid var(--border); border-radius:7px; padding:9px 10px; font-family:'Space Grotesk', sans-serif; font-size:0.88rem; background:#fff; outline:none;">
+            <option value="">Manual (editar campos abajo)</option>
+          </select>
+          <p id="cfgLockNote" style="display:none; font-size:0.74rem; color:var(--ink-soft); margin:6px 0 0;">Campos bloqueados por esta configuración. Cambia a "Manual" o edítala en la pestaña Configuraciones.</p>
+        </div>
         <div class="config-grid">
           <div class="cfg-field">
             <label>Largo del lance</label>
@@ -180,18 +192,20 @@
     </div>
 
     <div class="card">
-      <h2>Ventanas del trabajo</h2>
-      <div class="tbl-scroll">
-        <table class="win">
-          <thead>
-            <tr>
-              <th>Ancho</th><th>Alto</th><th>Ancho H (auto)</th><th>Alto H (auto)</th><th>Ancho M (auto)</th><th>Alto M (auto)</th><th>Traslape (auto)</th><th>Cant.</th><th></th>
-            </tr>
-          </thead>
-          <tbody id="winBody"></tbody>
-        </table>
+      <h2>Ventanas del trabajo <span class="chev" id="winChev">▲</span></h2>
+      <div id="winBodyWrap">
+        <div class="tbl-scroll">
+          <table class="win">
+            <thead>
+              <tr>
+                <th>Tipo</th><th>Ancho</th><th>Alto</th><th>Ancho H (auto)</th><th>Alto H (auto)</th><th>Ancho M (auto)</th><th>Alto M (auto)</th><th>Traslape (auto)</th><th>Cant.</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="winBody"></tbody>
+          </table>
+        </div>
+        <button class="add-row-btn" id="addRowBtn">+ Agregar tamaño de ventana</button>
       </div>
-      <button class="add-row-btn" id="addRowBtn">+ Agregar tamaño de ventana</button>
     </div>
 
     <button class="calc-btn" id="calcBtn">Calcular cortes</button>
@@ -206,6 +220,89 @@
         <input type="text" id="jobName" placeholder="Nombre del trabajo (ej. Casa Suyapa)">
         <button class="save-btn" id="saveBtn">Guardar</button>
       </div>
+    </div>
+
+  </div>
+
+  <div class="view" id="view-configs">
+
+    <div class="card">
+      <h2>Nueva configuración</h2>
+      <div class="save-row" style="margin-bottom:14px;">
+        <input type="text" id="newCfgName" placeholder="Nombre (ej. Ventana PVC blanco)">
+      </div>
+      <div class="config-grid">
+        <div class="cfg-field">
+          <label>Largo del lance</label>
+          <div class="input-row"><input type="number" id="newCfgBarLength" value="5.80" step="0.01" min="0.1"><span class="unit">m</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Kerf (pérdida por corte)</label>
+          <div class="input-row"><input type="number" id="newCfgKerf" value="0" step="0.001" min="0"><span class="unit">m</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Hojas por ventana</label>
+          <div class="input-row"><input type="number" id="newCfgHojas" value="2" step="1" min="0"><span class="unit">pz</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Mallas por ventana</label>
+          <div class="input-row"><input type="number" id="newCfgMallas" value="1" step="1" min="0"><span class="unit">pz</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Traslapes por ventana</label>
+          <div class="input-row"><input type="number" id="newCfgTraslapes" value="2" step="1" min="0"><span class="unit">pz</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Contramarcos por ventana</label>
+          <div class="input-row"><input type="number" id="newCfgContramarcos" value="1" step="1" min="0"><span class="unit">pz</span></div>
+        </div>
+      </div>
+      <button class="calc-btn" id="saveCfgBtn" style="margin-top:14px;">Guardar configuración</button>
+    </div>
+
+    <div class="card">
+      <h2>Configuraciones guardadas</h2>
+      <div id="cfgList"><p class="empty-note">Todavía no has guardado ninguna configuración.</p></div>
+    </div>
+
+    <div class="card">
+      <h2>Nuevo tipo de ventana</h2>
+      <p style="font-size:0.78rem; color:var(--ink-soft); margin:-4px 0 12px;">Define cómo se calculan Ancho H, Alto H, Ancho M, Alto M y Traslape a partir de Ancho y Alto para este tipo.</p>
+      <div class="save-row" style="margin-bottom:14px;">
+        <input type="text" id="newTipoName" placeholder="Nombre (ej. Corrediza 3 hojas)">
+      </div>
+      <div class="config-grid">
+        <div class="cfg-field">
+          <label>Ancho H = Ancho ÷ N</label>
+          <div class="input-row"><input type="number" id="newTipoDivAnchoH" value="2" step="0.1" min="0.1"></div>
+        </div>
+        <div class="cfg-field">
+          <label>Ancho H = ... − ajuste</label>
+          <div class="input-row"><input type="number" id="newTipoRestaAnchoH" value="0" step="0.001"><span class="unit">m</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Alto H = Alto − ajuste</label>
+          <div class="input-row"><input type="number" id="newTipoRestaAltoH" value="0.077" step="0.001"><span class="unit">m</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Ancho M = Ancho H − ajuste</label>
+          <div class="input-row"><input type="number" id="newTipoRestaAnchoM" value="0.01" step="0.001"><span class="unit">m</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Alto M = Alto H − ajuste</label>
+          <div class="input-row"><input type="number" id="newTipoRestaAltoM" value="0" step="0.001"><span class="unit">m</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Traslape = Alto H − ajuste</label>
+          <div class="input-row"><input type="number" id="newTipoRestaTraslape" value="0.003" step="0.001"><span class="unit">m</span></div>
+        </div>
+      </div>
+      <button class="calc-btn" id="saveTipoBtn" style="margin-top:14px;">Guardar tipo de ventana</button>
+    </div>
+
+    <div class="card">
+      <h2>Tipos de ventana guardados</h2>
+      <div id="tipoList"><p class="empty-note">Solo tienes el tipo estándar (corrediza 2 hojas). Crea otros arriba.</p></div>
     </div>
 
   </div>
@@ -232,11 +329,22 @@ const saveBtn = document.getElementById('saveBtn');
 const jobNameInput = document.getElementById('jobName');
 const cfgBody = document.getElementById('cfgBody');
 const cfgChev = document.getElementById('cfgChev');
+const activeConfigSelect = document.getElementById('activeConfigSelect');
+const cfgLockNote = document.getElementById('cfgLockNote');
+const CFG_FIELD_IDS = ['barLength','kerf','hojasPorVentana','mallasPorVentana','traslapesPorVentana','contramarcosPorVentana'];
 
 document.querySelector('.card h2').addEventListener('click', () => {
   const open = cfgBody.style.display !== 'none';
   cfgBody.style.display = open ? 'none' : 'block';
   cfgChev.textContent = open ? '▼' : '▲';
+});
+
+const winBodyWrap = document.getElementById('winBodyWrap');
+const winChev = document.getElementById('winChev');
+document.getElementById('winChev').parentElement.addEventListener('click', () => {
+  const open = winBodyWrap.style.display !== 'none';
+  winBodyWrap.style.display = open ? 'none' : 'block';
+  winChev.textContent = open ? '▼' : '▲';
 });
 
 // Tabs
@@ -247,6 +355,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     document.getElementById('view-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'history') renderHistory();
+    if (tab.dataset.tab === 'configs'){ renderConfigList(); renderTipoList(); }
   });
 });
 
@@ -254,6 +363,7 @@ function addWinRow(data){
   data = data || {};
   const tr = document.createElement('tr');
   tr.innerHTML = `
+    <td><select class="f-tipo"></select></td>
     <td><input type="number" step="0.001" class="f-ancho" value="${data.ancho ?? ''}" placeholder="2.00"></td>
     <td><input type="number" step="0.001" class="f-alto" value="${data.alto ?? ''}" placeholder="2.10"></td>
     <td><input type="number" step="0.001" class="f-anchoH" value="${data.anchoH ?? ''}" readonly tabindex="-1" title="Calculado automáticamente"></td>
@@ -265,21 +375,19 @@ function addWinRow(data){
     <td><button class="del-btn" title="Quitar">✕</button></td>
   `;
 
+  populateTipoSelectOptions(tr.querySelector('.f-tipo'), data.tipoId);
+
   const recalcRow = () => {
     const ancho = parseFloat(tr.querySelector('.f-ancho').value) || 0;
     const alto = parseFloat(tr.querySelector('.f-alto').value) || 0;
+    const tipo = getSelectedTipo(tr);
 
-    // Fórmulas de fabricación:
-    // Ancho H = Ancho / 2
-    // Alto H = Alto - 0.077
-    // Ancho M = Ancho H - 0.01
-    // Alto M = Alto H
-    // Traslape = Alto H - 0.003
-    const anchoH = ancho > 0 ? ancho / 2 : 0;
-    const altoH = alto > 0 ? alto - 0.077 : 0;
-    const anchoM = anchoH > 0 ? anchoH - 0.01 : 0;
-    const altoM = altoH > 0 ? altoH : 0;
-    const traslape = altoH > 0 ? altoH - 0.003 : 0;
+    // Fórmulas de fabricación (según el tipo de ventana seleccionado):
+    const anchoH = ancho > 0 ? (ancho / (tipo.divAnchoH || 2)) - (tipo.restaAnchoH || 0) : 0;
+    const altoH = alto > 0 ? alto - (tipo.restaAltoH || 0) : 0;
+    const anchoM = anchoH > 0 ? anchoH - (tipo.restaAnchoM || 0) : 0;
+    const altoM = altoH > 0 ? altoH - (tipo.restaAltoM || 0) : 0;
+    const traslape = altoH > 0 ? altoH - (tipo.restaTraslape || 0) : 0;
 
     tr.querySelector('.f-anchoH').value = ancho > 0 ? anchoH.toFixed(3) : '';
     tr.querySelector('.f-altoH').value = alto > 0 ? altoH.toFixed(3) : '';
@@ -290,6 +398,12 @@ function addWinRow(data){
 
   tr.querySelector('.del-btn').addEventListener('click', () => {
     tr.remove();
+    saveDraft();
+    afterCalcInvalidate();
+  });
+
+  tr.querySelector('.f-tipo').addEventListener('change', () => {
+    recalcRow();
     saveDraft();
     afterCalcInvalidate();
   });
@@ -326,6 +440,7 @@ function readConfig(){
 function readRows(){
   const rows = Array.from(winBody.querySelectorAll('tr'));
   return rows.map(row => ({
+    tipoId: row.querySelector('.f-tipo').value,
     ancho: parseFloat(row.querySelector('.f-ancho').value) || 0,
     alto: parseFloat(row.querySelector('.f-alto').value) || 0,
     anchoH: parseFloat(row.querySelector('.f-anchoH').value) || 0,
@@ -521,9 +636,9 @@ function buildPrintHTML(){
       </div>
     </div>
     <table class="print-win-table">
-      <thead><tr><th>#</th><th>Ancho</th><th>Alto</th><th>Cant.</th></tr></thead>
+      <thead><tr><th>#</th><th>Tipo</th><th>Ancho</th><th>Alto</th><th>Cant.</th></tr></thead>
       <tbody>
-        ${lastRows.map((r,i)=>`<tr><td>V${i+1}</td><td>${fmt(r.ancho)} m</td><td>${fmt(r.alto)} m</td><td>${r.qty}</td></tr>`).join('')}
+        ${lastRows.map((r,i)=>`<tr><td>V${i+1}</td><td>${(tiposVentana.find(t=>String(t.id)===String(r.tipoId))||DEFAULT_TIPO).name}</td><td>${fmt(r.ancho)} m</td><td>${fmt(r.alto)} m</td><td>${r.qty}</td></tr>`).join('')}
       </tbody>
     </table>
     <div class="print-total">${lastResult.totalBars} lances totales</div>
@@ -596,6 +711,247 @@ downloadPdfBtn.addEventListener('click', async () => {
   }
 });
 
+// ---- Configuraciones guardadas ----
+
+async function getSavedConfigs(){
+  try{
+    const res = await window.storage.get('configuraciones-guardadas', false).catch(() => null);
+    return res && res.value ? JSON.parse(res.value) : [];
+  } catch(e){ return []; }
+}
+
+async function setSavedConfigs(list){
+  try{ await window.storage.set('configuraciones-guardadas', JSON.stringify(list), false); } catch(e){}
+}
+
+function lockActiveConfigFields(cfg){
+  document.getElementById('barLength').value = cfg.barLength;
+  document.getElementById('kerf').value = cfg.kerf;
+  document.getElementById('hojasPorVentana').value = cfg.hojas;
+  document.getElementById('mallasPorVentana').value = cfg.mallas;
+  document.getElementById('traslapesPorVentana').value = cfg.traslapes;
+  document.getElementById('contramarcosPorVentana').value = cfg.contramarcos;
+  CFG_FIELD_IDS.forEach(id => document.getElementById(id).setAttribute('readonly', 'true'));
+  cfgLockNote.style.display = 'block';
+}
+
+function unlockConfigFields(){
+  CFG_FIELD_IDS.forEach(id => document.getElementById(id).removeAttribute('readonly'));
+  cfgLockNote.style.display = 'none';
+}
+
+async function populateActiveConfigSelect(keepValue){
+  const configs = await getSavedConfigs();
+  const current = keepValue !== undefined ? keepValue : activeConfigSelect.value;
+  activeConfigSelect.innerHTML = '<option value="">Manual (editar campos abajo)</option>' +
+    configs.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const stillExists = configs.some(c => String(c.id) === String(current));
+  activeConfigSelect.value = stillExists ? current : '';
+  return configs;
+}
+
+activeConfigSelect.addEventListener('change', async () => {
+  const id = activeConfigSelect.value;
+  if (!id){
+    unlockConfigFields();
+  } else {
+    const configs = await getSavedConfigs();
+    const cfg = configs.find(c => String(c.id) === String(id));
+    if (cfg) lockActiveConfigFields(cfg);
+  }
+  saveDraft();
+});
+
+async function renderConfigList(){
+  const cfgList = document.getElementById('cfgList');
+  const configs = await getSavedConfigs();
+  if (configs.length === 0){
+    cfgList.innerHTML = '<p class="empty-note">Todavía no has guardado ninguna configuración.</p>';
+    return;
+  }
+  cfgList.innerHTML = '';
+  configs.forEach(cfg => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="hi-top"><span class="hi-name">${cfg.name}</span></div>
+      <div class="hi-stats">
+        <span>Lance: <b>${fmt(cfg.barLength)} m</b></span>
+        <span>Kerf: <b>${fmt(cfg.kerf)} m</b></span>
+        <span>Hojas: <b>${cfg.hojas}</b></span>
+        <span>Mallas: <b>${cfg.mallas}</b></span>
+        <span>Traslapes: <b>${cfg.traslapes}</b></span>
+        <span>Contramarcos: <b>${cfg.contramarcos}</b></span>
+      </div>
+      <div class="history-actions">
+        <button class="use-cfg-btn">Usar en Calcular</button>
+        <button class="del-cfg-btn">Eliminar</button>
+      </div>
+    `;
+    div.querySelector('.use-cfg-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await populateActiveConfigSelect(cfg.id);
+      activeConfigSelect.value = cfg.id;
+      lockActiveConfigFields(cfg);
+      saveDraft();
+      document.querySelector('.tab[data-tab="calc"]').click();
+    });
+    div.querySelector('.del-cfg-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const wasActive = String(activeConfigSelect.value) === String(cfg.id);
+      const newList = configs.filter(c => c.id !== cfg.id);
+      await setSavedConfigs(newList);
+      await populateActiveConfigSelect(wasActive ? '' : undefined);
+      if (wasActive) unlockConfigFields();
+      renderConfigList();
+    });
+    cfgList.appendChild(div);
+  });
+}
+
+document.getElementById('saveCfgBtn').addEventListener('click', async () => {
+  const name = document.getElementById('newCfgName').value.trim();
+  if (!name){
+    alert('Ponle un nombre a la configuración antes de guardarla.');
+    return;
+  }
+  const cfg = {
+    id: Date.now(),
+    name,
+    barLength: parseFloat(document.getElementById('newCfgBarLength').value) || 5.80,
+    kerf: parseFloat(document.getElementById('newCfgKerf').value) || 0,
+    hojas: parseInt(document.getElementById('newCfgHojas').value, 10) || 0,
+    mallas: parseInt(document.getElementById('newCfgMallas').value, 10) || 0,
+    traslapes: parseInt(document.getElementById('newCfgTraslapes').value, 10) || 0,
+    contramarcos: parseInt(document.getElementById('newCfgContramarcos').value, 10) || 0
+  };
+  const configs = await getSavedConfigs();
+  configs.push(cfg);
+  await setSavedConfigs(configs);
+
+  document.getElementById('newCfgName').value = '';
+  document.getElementById('newCfgBarLength').value = 5.80;
+  document.getElementById('newCfgKerf').value = 0;
+  document.getElementById('newCfgHojas').value = 2;
+  document.getElementById('newCfgMallas').value = 1;
+  document.getElementById('newCfgTraslapes').value = 2;
+  document.getElementById('newCfgContramarcos').value = 1;
+
+  await populateActiveConfigSelect();
+  renderConfigList();
+});
+
+// ---- Tipos de ventana (fórmulas auto) ----
+
+const DEFAULT_TIPO = {
+  id: 'default', name: 'Corrediza 2 hojas (estándar)',
+  divAnchoH: 2, restaAnchoH: 0, restaAltoH: 0.077, restaAnchoM: 0.01, restaAltoM: 0, restaTraslape: 0.003
+};
+let tiposVentana = [DEFAULT_TIPO];
+
+async function getSavedTipos(){
+  try{
+    const res = await window.storage.get('tipos-ventana', false).catch(() => null);
+    return res && res.value ? JSON.parse(res.value) : [];
+  } catch(e){ return []; }
+}
+
+async function setSavedTipos(list){
+  try{ await window.storage.set('tipos-ventana', JSON.stringify(list), false); } catch(e){}
+}
+
+async function refreshTiposCache(){
+  tiposVentana = [DEFAULT_TIPO, ...(await getSavedTipos())];
+}
+
+function getSelectedTipo(tr){
+  const id = tr.querySelector('.f-tipo').value;
+  return tiposVentana.find(t => String(t.id) === String(id)) || DEFAULT_TIPO;
+}
+
+function populateTipoSelectOptions(select, selectedId){
+  select.innerHTML = tiposVentana.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  const exists = tiposVentana.some(t => String(t.id) === String(selectedId));
+  select.value = exists ? selectedId : 'default';
+}
+
+function refreshAllRowTipoSelects(){
+  winBody.querySelectorAll('tr').forEach(tr => {
+    const select = tr.querySelector('.f-tipo');
+    const current = select.value;
+    populateTipoSelectOptions(select, current);
+  });
+}
+
+async function renderTipoList(){
+  const tipoList = document.getElementById('tipoList');
+  const tipos = await getSavedTipos();
+  if (tipos.length === 0){
+    tipoList.innerHTML = '<p class="empty-note">Solo tienes el tipo estándar (corrediza 2 hojas). Crea otros arriba.</p>';
+    return;
+  }
+  tipoList.innerHTML = '';
+  tipos.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="hi-top"><span class="hi-name">${t.name}</span></div>
+      <div class="hi-stats">
+        <span>Ancho H: <b>Ancho ÷ ${fmt(t.divAnchoH)} − ${fmt(t.restaAnchoH)}</b></span>
+        <span>Alto H: <b>Alto − ${fmt(t.restaAltoH)}</b></span>
+        <span>Ancho M: <b>Ancho H − ${fmt(t.restaAnchoM)}</b></span>
+        <span>Alto M: <b>Alto H − ${fmt(t.restaAltoM)}</b></span>
+        <span>Traslape: <b>Alto H − ${fmt(t.restaTraslape)}</b></span>
+      </div>
+      <div class="history-actions">
+        <button class="del-tipo-btn">Eliminar</button>
+      </div>
+    `;
+    div.querySelector('.del-tipo-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const newList = tipos.filter(x => x.id !== t.id);
+      await setSavedTipos(newList);
+      await refreshTiposCache();
+      refreshAllRowTipoSelects();
+      renderTipoList();
+    });
+    tipoList.appendChild(div);
+  });
+}
+
+document.getElementById('saveTipoBtn').addEventListener('click', async () => {
+  const name = document.getElementById('newTipoName').value.trim();
+  if (!name){
+    alert('Ponle un nombre al tipo de ventana antes de guardarlo.');
+    return;
+  }
+  const tipo = {
+    id: Date.now(),
+    name,
+    divAnchoH: parseFloat(document.getElementById('newTipoDivAnchoH').value) || 2,
+    restaAnchoH: parseFloat(document.getElementById('newTipoRestaAnchoH').value) || 0,
+    restaAltoH: parseFloat(document.getElementById('newTipoRestaAltoH').value) || 0,
+    restaAnchoM: parseFloat(document.getElementById('newTipoRestaAnchoM').value) || 0,
+    restaAltoM: parseFloat(document.getElementById('newTipoRestaAltoM').value) || 0,
+    restaTraslape: parseFloat(document.getElementById('newTipoRestaTraslape').value) || 0
+  };
+  const tipos = await getSavedTipos();
+  tipos.push(tipo);
+  await setSavedTipos(tipos);
+  await refreshTiposCache();
+  refreshAllRowTipoSelects();
+
+  document.getElementById('newTipoName').value = '';
+  document.getElementById('newTipoDivAnchoH').value = 2;
+  document.getElementById('newTipoRestaAnchoH').value = 0;
+  document.getElementById('newTipoRestaAltoH').value = 0.077;
+  document.getElementById('newTipoRestaAnchoM').value = 0.01;
+  document.getElementById('newTipoRestaAltoM').value = 0;
+  document.getElementById('newTipoRestaTraslape').value = 0.003;
+
+  renderTipoList();
+});
+
 async function renderHistory(){
   const historyList = document.getElementById('historyList');
   historyList.innerHTML = '<p class="empty-note">Cargando...</p>';
@@ -637,6 +993,8 @@ async function renderHistory(){
 }
 
 function loadJob(job){
+  activeConfigSelect.value = '';
+  unlockConfigFields();
   document.getElementById('barLength').value = job.cfg.barLength;
   document.getElementById('kerf').value = job.cfg.kerf;
   document.getElementById('hojasPorVentana').value = job.cfg.hojas;
@@ -655,18 +1013,27 @@ function loadJob(job){
 
 async function saveDraft(){
   try{
-    const draft = { cfg: readConfig(), rows: readRows() };
+    const draft = { cfg: readConfig(), rows: readRows(), activeConfigId: activeConfigSelect.value || null };
     if (window.storage) await window.storage.set('trabajo-borrador', JSON.stringify(draft), false);
   } catch(e){}
 }
 
 async function loadDraft(){
+  await refreshTiposCache();
+  await populateActiveConfigSelect();
   try{
     if (window.storage){
       const res = await window.storage.get('trabajo-borrador', false);
       if (res && res.value){
         const draft = JSON.parse(res.value);
-        if (draft.cfg){
+        if (draft.activeConfigId){
+          const configs = await getSavedConfigs();
+          const cfg = configs.find(c => String(c.id) === String(draft.activeConfigId));
+          if (cfg){
+            activeConfigSelect.value = cfg.id;
+            lockActiveConfigFields(cfg);
+          }
+        } else if (draft.cfg){
           document.getElementById('barLength').value = draft.cfg.barLength ?? 5.80;
           document.getElementById('kerf').value = draft.cfg.kerf ?? 0;
           document.getElementById('hojasPorVentana').value = draft.cfg.hojas ?? 2;
