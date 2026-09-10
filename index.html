@@ -110,6 +110,26 @@
 
   .empty-note{ color:var(--ink-soft); font-size:0.85rem; text-align:center; padding:20px 0; }
 
+  .checkbox-row{ display:flex; align-items:center; gap:9px; font-size:0.82rem; color:var(--ink); margin-top:14px; }
+  .checkbox-row input{ width:17px; height:17px; accent-color:var(--steel); }
+  table.win.glass-tbl{ min-width:380px; }
+
+  .glass-totals{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .glass-totals .stat{ flex:1; min-width:100px; background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:10px 12px; }
+  .glass-totals .num{ display:block; font-family:'JetBrains Mono', monospace; font-weight:700; font-size:1.1rem; color:var(--steel-dark); }
+  .glass-totals .num.warn{ color:var(--orange); }
+  .glass-totals .lbl{ font-size:0.66rem; color:var(--ink-soft); margin-top:2px; }
+
+  .error-box{ background:#FBEAE4; border:1px solid #E8B7A3; border-radius:9px; padding:12px 14px; margin-bottom:14px; font-size:0.82rem; color:#8A3A1E; }
+  .error-box b{ display:block; margin-bottom:4px; }
+
+  .sheet-block{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:14px; }
+  .sheet-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+  .sheet-head h3{ margin:0; font-size:0.88rem; font-weight:700; }
+  .sheet-head .eff{ font-family:'JetBrains Mono', monospace; font-size:0.8rem; color:var(--good); font-weight:700; }
+  .sheet-sub{ font-size:0.72rem; color:var(--ink-soft); margin:0 0 10px; }
+  .sheet-svg-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:6px; }
+
   .history-item{ background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:12px 14px; margin-bottom:10px; cursor:pointer; }
   .history-item:hover{ border-color:var(--steel); }
   .history-item .hi-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
@@ -146,6 +166,7 @@
 
   <div class="tabs">
     <div class="tab active" data-tab="calc">Calcular</div>
+    <div class="tab" data-tab="glass">Vidrio</div>
     <div class="tab" data-tab="configs">Configuraciones</div>
     <div class="tab" data-tab="history">Historial</div>
   </div>
@@ -221,6 +242,51 @@
         <button class="save-btn" id="saveBtn">Guardar</button>
       </div>
     </div>
+
+  </div>
+
+  <div class="view" id="view-glass">
+
+    <div class="card">
+      <h2>Lámina de vidrio <span class="chev" id="sheetChev">▲</span></h2>
+      <div id="sheetBody">
+        <div class="config-grid">
+          <div class="cfg-field">
+            <label>Ancho de la lámina</label>
+            <div class="input-row"><input type="number" id="sheetW" value="3.30" step="0.01" min="0.1"><span class="unit">m</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Alto de la lámina</label>
+            <div class="input-row"><input type="number" id="sheetH" value="2.14" step="0.01" min="0.1"><span class="unit">m</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Grosor de corte (kerf)</label>
+            <div class="input-row"><input type="number" id="glassKerf" value="0" step="0.001" min="0"><span class="unit">m</span></div>
+          </div>
+        </div>
+        <label class="checkbox-row"><input type="checkbox" id="allowRotate">Permitir rotar piezas 90° si así aprovecha más</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Piezas a cortar <span class="chev" id="piecesChev">▲</span></h2>
+      <div id="piecesBody">
+        <div class="tbl-scroll">
+          <table class="win glass-tbl">
+            <thead><tr><th>Ancho</th><th>Alto</th><th>Cant.</th><th></th></tr></thead>
+            <tbody id="glassBody"></tbody>
+          </table>
+        </div>
+        <button class="add-row-btn" id="addGlassRowBtn">+ Agregar medida</button>
+      </div>
+    </div>
+
+    <button class="calc-btn" id="calcGlassBtn">Calcular láminas</button>
+    <button class="calc-btn" id="downloadGlassPdfBtn" style="display:none; margin-top:8px; background:var(--good);">⬇️ Descargar PDF</button>
+
+    <div id="glassResults" style="margin-top:18px;"></div>
+
+    <p class="empty-note" style="text-align:left; padding:0; margin-top:14px;">Cada rectángulo con borde de color es una pieza. Las zonas rayadas y etiquetadas "Sobrante" son lo que queda de la lámina, con su medida exacta. El borde de cada pieza es la línea de corte.</p>
 
   </div>
 
@@ -362,6 +428,18 @@ document.getElementById('winChev').parentElement.addEventListener('click', () =>
   winChev.textContent = open ? '▼' : '▲';
 });
 
+function wireCollapse(bodyId, chevId){
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  chev.parentElement.addEventListener('click', () => {
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    chev.textContent = open ? '▼' : '▲';
+  });
+}
+wireCollapse('sheetBody', 'sheetChev');
+wireCollapse('piecesBody', 'piecesChev');
+
 // Tabs
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -495,6 +573,340 @@ function fmt(n){
 function fmtFull(n){
   return (Math.round(n * 1000) / 1000).toFixed(3);
 }
+
+// ==================== VIDRIO ====================
+
+const glassBody = document.getElementById('glassBody');
+
+function addGlassRow(data){
+  data = data || {};
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="number" step="0.001" class="f-ancho" value="${data.ancho ?? ''}" placeholder="1.20"></td>
+    <td><input type="number" step="0.001" class="f-alto" value="${data.alto ?? ''}" placeholder="0.90"></td>
+    <td><input type="number" step="1" min="1" class="f-qty" value="${data.qty ?? 1}"></td>
+    <td><button class="del-btn" title="Quitar">✕</button></td>
+  `;
+  tr.querySelector('.del-btn').addEventListener('click', () => { tr.remove(); saveGlassDraft(); });
+  tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', saveGlassDraft));
+  glassBody.appendChild(tr);
+}
+
+document.getElementById('addGlassRowBtn').addEventListener('click', () => { addGlassRow(); saveGlassDraft(); });
+
+function readGlassRows(){
+  return Array.from(glassBody.querySelectorAll('tr')).map(row => ({
+    ancho: parseFloat(row.querySelector('.f-ancho').value) || 0,
+    alto: parseFloat(row.querySelector('.f-alto').value) || 0,
+    qty: parseInt(row.querySelector('.f-qty').value, 10) || 0
+  })).filter(r => r.ancho > 0 && r.alto > 0 && r.qty > 0);
+}
+
+function readSheetCfg(){
+  return {
+    sheetW: parseFloat(document.getElementById('sheetW').value) || 3.30,
+    sheetH: parseFloat(document.getElementById('sheetH').value) || 2.14,
+    kerf: parseFloat(document.getElementById('glassKerf').value) || 0,
+    allowRotate: document.getElementById('allowRotate').checked
+  };
+}
+
+// ---- Empaquetado guillotina general (árbol de rectángulos libres) ----
+// Cada corte sigue siendo una línea recta de lado a lado del rectángulo que está
+// cortando en ese momento — igual que en la vida real, solo que el algoritmo
+// reutiliza cada sobrante como un rectángulo libre donde puede seguir cortando.
+
+function splitVerticalFirst(rect, pw, ph){
+  const out = [];
+  if (rect.w - pw > 1e-6) out.push({ x: rect.x + pw, y: rect.y, w: rect.w - pw, h: rect.h });
+  if (rect.h - ph > 1e-6) out.push({ x: rect.x, y: rect.y + ph, w: pw, h: rect.h - ph });
+  return out;
+}
+function splitHorizontalFirst(rect, pw, ph){
+  const out = [];
+  if (rect.h - ph > 1e-6) out.push({ x: rect.x, y: rect.y + ph, w: rect.w, h: rect.h - ph });
+  if (rect.w - pw > 1e-6) out.push({ x: rect.x + pw, y: rect.y, w: rect.w - pw, h: ph });
+  return out;
+}
+
+function guillotinePackAll(instances, sheetW, sheetH, kerf, allowRotate, splitFn, scoreFn){
+  const sheets = [];
+  const leftover = [];
+
+  instances.forEach(inst => {
+    let best = null;
+    for (let s = 0; s < sheets.length; s++){
+      const free = sheets[s].free;
+      for (let r = 0; r < free.length; r++){
+        const rect = free[r];
+        if (inst.w <= rect.w + 1e-6 && inst.h <= rect.h + 1e-6){
+          const score = scoreFn(rect, inst.w, inst.h);
+          if (!best || score < best.score) best = { sheetIdx: s, rectIdx: r, w: inst.w, h: inst.h, rotated: false, score };
+        }
+        if (allowRotate && inst.h <= rect.w + 1e-6 && inst.w <= rect.h + 1e-6){
+          const score = scoreFn(rect, inst.h, inst.w);
+          if (!best || score < best.score) best = { sheetIdx: s, rectIdx: r, w: inst.h, h: inst.w, rotated: true, score };
+        }
+      }
+    }
+    if (!best){
+      const fitsNormal = inst.w <= sheetW + 1e-6 && inst.h <= sheetH + 1e-6;
+      const fitsRotated = allowRotate && inst.h <= sheetW + 1e-6 && inst.w <= sheetH + 1e-6;
+      if (!fitsNormal && !fitsRotated){ leftover.push(inst); return; }
+      sheets.push({ free: [{ x: 0, y: 0, w: sheetW, h: sheetH }], placed: [] });
+      const s = sheets.length - 1;
+      const w = fitsNormal ? inst.w : inst.h;
+      const h = fitsNormal ? inst.h : inst.w;
+      best = { sheetIdx: s, rectIdx: 0, w, h, rotated: !fitsNormal, score: 0 };
+    }
+    const sheet = sheets[best.sheetIdx];
+    const rect = sheet.free[best.rectIdx];
+    sheet.placed.push({ x: rect.x, y: rect.y, w: best.w, h: best.h, code: inst.code, rotated: best.rotated });
+    sheet.free.splice(best.rectIdx, 1);
+    splitFn(rect, best.w + kerf, best.h + kerf).forEach(nr => {
+      if (nr.w > 1e-6 && nr.h > 1e-6) sheet.free.push(nr);
+    });
+  });
+
+  return {
+    sheets: sheets.map(s => s.placed),
+    freeRects: sheets.map(s => s.free),
+    leftover
+  };
+}
+
+// Prueba varias combinaciones de orden de piezas + regla de corte + heurística
+// de selección, y se queda con la que deja menos láminas y menos sobrante.
+function bestGuillotinePacking(instances, sheetW, sheetH, kerf, allowRotate){
+  const sortOrders = [
+    (a, b) => (b.w - a.w) || (b.h - a.h),
+    (a, b) => (b.h - a.h) || (b.w - a.w),
+    (a, b) => (b.w * b.h) - (a.w * a.h)
+  ];
+  const splitFns = [splitVerticalFirst, splitHorizontalFirst];
+  const scoreFns = [
+    (rect, w, h) => (rect.w * rect.h) - (w * h),
+    (rect, w, h) => Math.min(rect.w - w, rect.h - h)
+  ];
+
+  let best = null;
+  let triedCount = 0;
+  sortOrders.forEach(sortFn => {
+    const sorted = instances.slice().sort(sortFn);
+    splitFns.forEach(splitFn => {
+      scoreFns.forEach(scoreFn => {
+        triedCount++;
+        const result = guillotinePackAll(sorted, sheetW, sheetH, kerf, allowRotate, splitFn, scoreFn);
+        let usedArea = 0;
+        result.sheets.forEach(sh => sh.forEach(p => usedArea += p.w * p.h));
+        const totalArea = result.sheets.length * sheetW * sheetH;
+        const waste = totalArea - usedArea;
+        const numSheets = result.sheets.length;
+        if (!best || numSheets < best.numSheets || (numSheets === best.numSheets && waste < best.waste)){
+          best = Object.assign({}, result, { numSheets, waste });
+        }
+      });
+    });
+  });
+  best.triedCount = triedCount;
+  return best;
+}
+
+let lastGlassResult = null;
+
+document.getElementById('calcGlassBtn').addEventListener('click', () => {
+  const cfg = readSheetCfg();
+  const rows = readGlassRows();
+  const resultsEl = document.getElementById('glassResults');
+  const downloadBtn = document.getElementById('downloadGlassPdfBtn');
+
+  if (rows.length === 0){
+    resultsEl.innerHTML = '<p class="empty-note">Agrega al menos una medida con ancho, alto y cantidad válidos.</p>';
+    downloadBtn.style.display = 'none';
+    lastGlassResult = null;
+    return;
+  }
+
+  const instances = [];
+  rows.forEach((r, idx) => {
+    const code = 'P' + (idx + 1);
+    for (let i = 0; i < r.qty; i++) instances.push({ w: r.ancho, h: r.alto, code });
+  });
+
+  const oversizedNoFit = instances.filter(p => {
+    const fitsNormal = p.w <= cfg.sheetW + 1e-6 && p.h <= cfg.sheetH + 1e-6;
+    const fitsRotated = cfg.allowRotate && p.h <= cfg.sheetW + 1e-6 && p.w <= cfg.sheetH + 1e-6;
+    return !fitsNormal && !fitsRotated;
+  });
+
+  const packable = instances.filter(p => !oversizedNoFit.includes(p));
+  const best = bestGuillotinePacking(packable, cfg.sheetW, cfg.sheetH, cfg.kerf, cfg.allowRotate);
+
+  lastGlassResult = {
+    cfg, rows,
+    sheets: best.sheets,
+    freeRects: best.freeRects,
+    leftover: best.leftover.concat(oversizedNoFit),
+    oversizedNoFit,
+    triedCount: best.triedCount
+  };
+  renderGlassResults(lastGlassResult);
+  downloadBtn.style.display = 'block';
+  saveGlassDraft();
+});
+
+function renderGlassResults(result){
+  const { cfg, sheets, freeRects, oversizedNoFit, triedCount } = result;
+  const resultsEl = document.getElementById('glassResults');
+  const sheetArea = cfg.sheetW * cfg.sheetH;
+  let usedArea = 0;
+  sheets.forEach(s => s.forEach(p => usedArea += p.w * p.h));
+  const totalArea = sheetArea * sheets.length;
+  const wasteArea = totalArea - usedArea;
+  const eff = totalArea > 0 ? (usedArea / totalArea) * 100 : 0;
+
+  let html = '';
+
+  if (oversizedNoFit.length){
+    const sizes = [...new Set(oversizedNoFit.map(p => `${fmt(p.w)} × ${fmt(p.h)} m`))];
+    html += `<div class="error-box"><b>Estas medidas no caben en la lámina (${fmt(cfg.sheetW)} × ${fmt(cfg.sheetH)} m):</b>${sizes.join(', ')}</div>`;
+  }
+
+  html += `<div class="glass-totals">
+    <div class="stat"><span class="num">${sheets.length}</span><span class="lbl">láminas necesarias</span></div>
+    <div class="stat"><span class="num">${fmt(usedArea)} m²</span><span class="lbl">área usada</span></div>
+    <div class="stat"><span class="num warn">${fmt(wasteArea)} m²</span><span class="lbl">sobrante</span></div>
+    <div class="stat"><span class="num" style="color:var(--good);">${eff.toFixed(1)}%</span><span class="lbl">aprovechamiento</span></div>
+  </div>`;
+  if (triedCount) html += `<p class="empty-note" style="text-align:left; padding:0; margin:-8px 0 14px;">Se probaron ${triedCount} combinaciones de orden y corte; se usó la que dejó menos láminas y menos sobrante.</p>`;
+
+  sheets.forEach((pieces, i) => {
+    html += buildSheetBlockHTML(pieces, freeRects[i] || [], i + 1, cfg);
+  });
+
+  resultsEl.innerHTML = html;
+}
+
+function buildSheetBlockHTML(pieces, freeRects, sheetNum, cfg){
+  const sheetArea = cfg.sheetW * cfg.sheetH;
+  let usedArea = 0;
+  pieces.forEach(p => usedArea += p.w * p.h);
+  const eff = (usedArea / sheetArea) * 100;
+
+  const maxWpx = 680, maxHpx = 480;
+  const scale = Math.min(maxWpx / cfg.sheetW, maxHpx / cfg.sheetH);
+  const wPx = cfg.sheetW * scale;
+  const hPx = cfg.sheetH * scale;
+
+  let svg = `<svg viewBox="0 0 ${wPx} ${hPx}" width="100%" height="auto" style="max-width:${wPx}px; display:block; margin:0 auto;" xmlns="http://www.w3.org/2000/svg">`;
+  svg += `<defs><pattern id="hatch${sheetNum}" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+    <rect width="7" height="7" fill="#EDEFF1"></rect>
+    <line x1="0" y1="0" x2="0" y2="7" stroke="#D3D7DC" stroke-width="3"></line>
+  </pattern></defs>`;
+  svg += `<rect x="0" y="0" width="${wPx}" height="${hPx}" fill="#fff" stroke="#1C2B36" stroke-width="2"></rect>`;
+
+  const MIN_LABEL = 0.05;
+  freeRects.forEach(fr => {
+    const x = fr.x * scale, y = fr.y * scale, w = fr.w * scale, h = fr.h * scale;
+    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#hatch${sheetNum})" stroke="#B9BEC6" stroke-width="1"></rect>`;
+    if (fr.w >= MIN_LABEL && fr.h >= MIN_LABEL && w > 34 && h > 20){
+      const cx = x + w / 2, cy = y + h / 2;
+      svg += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-weight="600" font-size="9.5" fill="#5C6B75" paint-order="stroke" stroke="#fff" stroke-width="3" stroke-linejoin="round">Sobrante</text>`;
+      svg += `<text x="${cx}" y="${cy + 9}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="700" font-size="10.5" fill="#5C6B75" paint-order="stroke" stroke="#fff" stroke-width="3" stroke-linejoin="round">${fmtFull(fr.w)}×${fmtFull(fr.h)}</text>`;
+    }
+  });
+
+  pieces.forEach((p, idx) => {
+    const x = p.x * scale, y = p.y * scale, w = p.w * scale, h = p.h * scale;
+    const color = PALETTE[idx % PALETTE.length];
+    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#fff" stroke="${color}" stroke-width="2.5"></rect>`;
+    const cx = x + w / 2, cy = y + h / 2;
+    const dimLabel = `${fmt(p.w)}×${fmt(p.h)}` + (p.rotated ? ' ⟲' : '');
+    svg += `<text x="${cx}" y="${cy - 5}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="700" font-size="12" fill="${color}" paint-order="stroke" stroke="#fff" stroke-width="3" stroke-linejoin="round">${p.code}</text>`;
+    svg += `<text x="${cx}" y="${cy + 10}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="600" font-size="10.5" fill="#1C2B36" paint-order="stroke" stroke="#fff" stroke-width="3" stroke-linejoin="round">${dimLabel} m</text>`;
+  });
+
+  svg += `</svg>`;
+
+  return `<div class="sheet-block">
+    <div class="sheet-head"><h3>Lámina ${sheetNum}</h3><span class="eff">${eff.toFixed(1)}% aprovechada</span></div>
+    <p class="sheet-sub">${pieces.length} piezas · ${fmt(cfg.sheetW * cfg.sheetH - usedArea)} m² de sobrante</p>
+    <div class="sheet-svg-wrap">${svg}</div>
+  </div>`;
+}
+
+document.getElementById('downloadGlassPdfBtn').addEventListener('click', async () => {
+  if (!lastGlassResult) return;
+  const btn = document.getElementById('downloadGlassPdfBtn');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generando PDF...';
+  try{
+    const target = document.getElementById('glassResults');
+    const canvas = await html2canvas(target, { scale: 2, backgroundColor: '#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while (heightLeft > 0){
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    pdf.save('cortes-vidrio.pdf');
+  } catch(e){
+    alert('No se pudo generar el PDF. Intenta de nuevo.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+});
+
+async function saveGlassDraft(){
+  try{
+    const draft = { cfg: readSheetCfg(), rows: readGlassRows() };
+    await localDB.set('vidrio-borrador', JSON.stringify(draft));
+  } catch(e){}
+}
+
+async function loadGlassDraft(){
+  try{
+    const res = await localDB.get('vidrio-borrador');
+    if (res && res.value){
+      const draft = JSON.parse(res.value);
+      if (draft.cfg){
+        document.getElementById('sheetW').value = draft.cfg.sheetW ?? 3.30;
+        document.getElementById('sheetH').value = draft.cfg.sheetH ?? 2.14;
+        document.getElementById('glassKerf').value = draft.cfg.kerf ?? 0;
+        document.getElementById('allowRotate').checked = !!draft.cfg.allowRotate;
+      }
+      if (draft.rows && draft.rows.length){
+        draft.rows.forEach(r => addGlassRow(r));
+        wireGlassAutosave();
+        return;
+      }
+    }
+  } catch(e){}
+  addGlassRow({ ancho: 1.20, alto: 0.90, qty: 2 });
+  wireGlassAutosave();
+}
+
+function wireGlassAutosave(){
+  ['sheetW','sheetH','glassKerf'].forEach(id => document.getElementById(id).addEventListener('input', saveGlassDraft));
+  document.getElementById('allowRotate').addEventListener('change', saveGlassDraft);
+}
+
+// ==================== FIN VIDRIO ====================
 
 function buildGroups(rows, cfg){
   const groups = {
@@ -1067,6 +1479,7 @@ async function loadDraft(){
 }
 
 loadDraft();
+loadGlassDraft();
 </script>
 </body>
 </html>
