@@ -98,13 +98,13 @@
   .bar-block{ margin-bottom:10px; }
   .bar-title{ font-family:'IBM Plex Mono', monospace; font-size:0.74rem; color:var(--ink-soft); margin-bottom:4px; display:flex; justify-content:space-between; }
   .bar-title .waste-tag{ color:var(--orange); }
-  .bar-visual{ display:flex; height:38px; border-radius:6px; overflow:hidden; border:1px solid var(--alu-line);
+  .bar-visual{ display:flex; height:46px; border-radius:6px; overflow:visible; border:1px solid var(--alu-line);
     background:repeating-linear-gradient(90deg, var(--alu), var(--alu) 2px, #D6D9DD 2px, #D6D9DD 4px); }
   .segment{ position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; border-right:2px solid var(--paper);
-    color:#fff; font-family:'IBM Plex Mono', monospace; font-size:0.66rem; font-weight:600; overflow:hidden; white-space:nowrap; min-width:0; line-height:1.15; }
-  .segment .seg-label{ padding:0 3px; overflow:hidden; text-overflow:ellipsis; display:flex; flex-direction:column; align-items:center; }
-  .segment .seg-code{ font-family:'JetBrains Mono', monospace; font-size:0.53rem; font-weight:700; color:#000; letter-spacing:0.03em; font-variant-numeric:tabular-nums; }
-  .segment .seg-len{ font-family:'JetBrains Mono', monospace; font-size:0.63rem; font-weight:700; color:#fff; letter-spacing:0.02em; font-variant-numeric:tabular-nums; }
+    color:#fff; font-family:'IBM Plex Mono', monospace; font-size:0.66rem; font-weight:600; overflow:visible; white-space:nowrap; min-width:0; line-height:1.15; }
+  .segment .seg-label{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); padding:0 3px; overflow:visible; white-space:nowrap; display:flex; flex-direction:column; align-items:center; z-index:2; pointer-events:none; }
+  .segment .seg-code{ font-family:'JetBrains Mono', monospace; font-size:0.583rem; font-weight:700; color:#000; letter-spacing:0.03em; font-variant-numeric:tabular-nums; text-shadow:0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff; }
+  .segment .seg-len{ font-family:'JetBrains Mono', monospace; font-size:0.51rem; font-weight:700; color:#fff; letter-spacing:0.02em; font-variant-numeric:tabular-nums; text-shadow:0 0 2px #000, 0 0 3px #000, 0 0 4px #000; }
   .segment.leftover{ background:transparent !important; color:var(--ink-soft); font-weight:500; }
   .segment:last-child{ border-right:none; }
 
@@ -133,7 +133,7 @@
   .print-win-table{ width:100%; border-collapse:collapse; margin-bottom:14px; font-size:0.8rem; }
   .print-win-table th, .print-win-table td{ border:1px solid var(--border); padding:4px 8px; text-align:left; }
   .print-total{ font-weight:700; margin-bottom:16px; font-size:0.9rem; }
-  .print-group-stats{ font-size:0.78rem; color:var(--ink-soft); margin-bottom:8px; }
+  .print-group-stats{ font-size:0.66rem; color:var(--ink-soft); margin-bottom:6px; }
 </style>
 </head>
 <body>
@@ -1070,4 +1070,5 @@ loadDraft();
 </script>
 </body>
 </html>
+
 
