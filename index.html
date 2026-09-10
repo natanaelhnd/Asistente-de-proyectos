@@ -36,7 +36,7 @@
   header h1{ font-size:1.4rem; font-weight:700; margin:0 0 4px; letter-spacing:-0.01em; }
   header p{ margin:0; color:var(--ink-soft); font-size:0.88rem; line-height:1.4; }
 
-  .tabs{ display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--border); }
+  .tabs{ display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
   .tab{
     padding:10px 16px; font-size:0.85rem; font-weight:600; color:var(--ink-soft);
     cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
@@ -141,6 +141,12 @@
   .history-actions button{ font-size:0.76rem; padding:5px 10px; border-radius:6px; border:1px solid var(--border); background:none; cursor:pointer; color:var(--ink-soft); }
   .history-actions button:hover{ border-color:var(--orange); color:var(--orange); }
 
+  .mat-tbl{ width:100%; border-collapse:collapse; margin-top:4px; }
+  .mat-tbl th{ text-align:left; font-size:0.68rem; color:var(--ink-soft); font-weight:600; padding:0 6px 8px 0; white-space:nowrap; }
+  .mat-tbl td{ padding:8px 6px; border-top:1px solid var(--border); font-size:0.86rem; }
+  .mat-tbl td.mat-qty{ font-family:'JetBrains Mono', monospace; font-weight:700; color:var(--steel-dark); text-align:right; white-space:nowrap; }
+  .mat-tbl td.mat-formula{ font-size:0.72rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace; }
+
   footer{ text-align:center; font-size:0.72rem; color:var(--ink-soft); margin-top:16px; }
 
   #printArea{
@@ -168,6 +174,7 @@
     <div class="tab active" data-tab="calc">Calcular</div>
     <div class="tab" data-tab="glass">Vidrio</div>
     <div class="tab" data-tab="configs">Configuraciones</div>
+    <div class="tab" data-tab="materiales">Materiales</div>
     <div class="tab" data-tab="history">Historial</div>
   </div>
 
@@ -373,6 +380,51 @@
 
   </div>
 
+  <div class="view" id="view-materiales">
+
+    <div class="card">
+      <h2>Cómo funciona</h2>
+      <p style="font-size:0.82rem; color:var(--ink-soft); margin:0; line-height:1.5;">
+        Cada material de la lista se calcula como <b>multiplicador × base</b>. La base puede ser el total de ventanas del trabajo,
+        el total de hojas/mallas/contramarcos/traslapes (según lo configurado arriba), la suma de anchos o altos, o una cantidad fija.
+        La lista se recalcula sola cada vez que calculas los cortes en la pestaña "Calcular".
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Agregar material</h2>
+      <div class="save-row" style="margin-bottom:14px;">
+        <input type="text" id="newMatName" placeholder="Nombre (ej. Cierres de giro)">
+      </div>
+      <div class="config-grid">
+        <div class="cfg-field">
+          <label>Se calcula sobre</label>
+          <select id="newMatBase" style="width:100%; border:none; border-bottom:2px solid var(--steel); padding:0 0 3px; font-family:'Space Grotesk', sans-serif; font-size:0.9rem; background:none; outline:none;">
+            <option value="ventanas">Total de ventanas</option>
+            <option value="hojas">Total de hojas</option>
+            <option value="mallas">Total de mallas</option>
+            <option value="contramarcos">Total de contramarcos</option>
+            <option value="traslapes">Total de traslapes</option>
+            <option value="anchoSum">Suma de anchos (m)</option>
+            <option value="altoSum">Suma de altos (m)</option>
+            <option value="fijo">Cantidad fija</option>
+          </select>
+        </div>
+        <div class="cfg-field">
+          <label>Multiplicador</label>
+          <div class="input-row"><input type="number" id="newMatMult" value="1" step="0.1"></div>
+        </div>
+      </div>
+      <button class="calc-btn" id="saveMatBtn" style="margin-top:14px;">Guardar material</button>
+    </div>
+
+    <div class="card">
+      <h2>Lista de materiales</h2>
+      <div id="matList"><p class="empty-note">Todavía no has agregado materiales.</p></div>
+    </div>
+
+  </div>
+
   <div class="view" id="view-history">
     <div id="historyList"></div>
   </div>
@@ -449,6 +501,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.getElementById('view-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'history') renderHistory();
     if (tab.dataset.tab === 'configs'){ renderConfigList(); renderTipoList(); }
+    if (tab.dataset.tab === 'materiales') renderMatList();
   });
 });
 
@@ -950,6 +1003,131 @@ function computeAll(rows, cfg){
   return { groups: out, totalBars };
 }
 
+// ==================== LISTA DE MATERIALES ====================
+
+const MAT_BASE_LABELS = {
+  ventanas: 'Total de ventanas',
+  hojas: 'Total de hojas',
+  mallas: 'Total de mallas',
+  contramarcos: 'Total de contramarcos',
+  traslapes: 'Total de traslapes',
+  anchoSum: 'Suma de anchos (m)',
+  altoSum: 'Suma de altos (m)',
+  fijo: 'Cantidad fija'
+};
+
+function computeMaterialBases(rows, cfg){
+  const totalVentanas = rows.reduce((s,r)=>s+r.qty,0);
+  const anchoSum = rows.reduce((s,r)=>s+r.ancho*r.qty,0);
+  const altoSum = rows.reduce((s,r)=>s+r.alto*r.qty,0);
+  return {
+    ventanas: totalVentanas,
+    hojas: totalVentanas * (cfg.hojas || 0),
+    mallas: totalVentanas * (cfg.mallas || 0),
+    contramarcos: totalVentanas * (cfg.contramarcos || 0),
+    traslapes: totalVentanas * (cfg.traslapes || 0),
+    anchoSum: anchoSum,
+    altoSum: altoSum,
+    fijo: 1
+  };
+}
+
+function computeMaterialsList(materialItems, rows, cfg){
+  const bases = computeMaterialBases(rows, cfg);
+  return materialItems.map(m => {
+    const base = bases[m.baseType] ?? 0;
+    const qty = m.baseType === 'fijo' ? Math.round(m.multiplier) : Math.ceil(base * m.multiplier - 1e-9);
+    return { name: m.name, baseType: m.baseType, multiplier: m.multiplier, base, qty };
+  });
+}
+
+function buildMaterialsTableHTML(materialsResult){
+  if (!materialsResult || materialsResult.length === 0) return '';
+  let html = `<div class="group-title">Lista de materiales</div>
+    <div class="card"><table class="mat-tbl"><thead><tr><th>Material</th><th>Fórmula</th><th style="text-align:right;">Cantidad</th></tr></thead><tbody>`;
+  materialsResult.forEach(m => {
+    const formulaTxt = m.baseType === 'fijo'
+      ? 'Cantidad fija'
+      : `${fmt(m.multiplier)} × ${MAT_BASE_LABELS[m.baseType]} (${fmt(m.base)})`;
+    html += `<tr><td>${m.name}</td><td class="mat-formula">${formulaTxt}</td><td class="mat-qty">${m.qty}</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+async function getSavedMaterials(){
+  try{
+    const res = await localDB.get('materiales-lista').catch(() => null);
+    return res && res.value ? JSON.parse(res.value) : null;
+  } catch(e){ return null; }
+}
+
+async function setSavedMaterials(list){
+  try{ await localDB.set('materiales-lista', JSON.stringify(list)); } catch(e){}
+}
+
+const DEFAULT_MATERIALS = [
+  { id: 'm1', name: 'Cierres de giro', baseType: 'ventanas', multiplier: 1 },
+  { id: 'm2', name: 'Rodos dobles con canal', baseType: 'ventanas', multiplier: 4 },
+  { id: 'm3', name: 'Rodos para malla', baseType: 'ventanas', multiplier: 2 },
+  { id: 'm4', name: 'Tapa drenaje', baseType: 'ventanas', multiplier: 2 }
+];
+
+let materialItems = [];
+
+async function refreshMaterialsCache(){
+  const saved = await getSavedMaterials();
+  materialItems = saved !== null ? saved : DEFAULT_MATERIALS;
+}
+
+async function renderMatList(){
+  const matList = document.getElementById('matList');
+  await refreshMaterialsCache();
+  if (materialItems.length === 0){
+    matList.innerHTML = '<p class="empty-note">Todavía no has agregado materiales.</p>';
+    return;
+  }
+  matList.innerHTML = '';
+  materialItems.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    const formulaTxt = m.baseType === 'fijo' ? `Cantidad fija: ${fmt(m.multiplier)}` : `${fmt(m.multiplier)} × ${MAT_BASE_LABELS[m.baseType]}`;
+    div.innerHTML = `
+      <div class="hi-top"><span class="hi-name">${m.name}</span></div>
+      <div class="hi-stats"><span>${formulaTxt}</span></div>
+      <div class="history-actions"><button class="del-mat-btn">Eliminar</button></div>
+    `;
+    div.querySelector('.del-mat-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      materialItems = materialItems.filter(x => x.id !== m.id);
+      await setSavedMaterials(materialItems);
+      renderMatList();
+    });
+    matList.appendChild(div);
+  });
+}
+
+document.getElementById('saveMatBtn').addEventListener('click', async () => {
+  const name = document.getElementById('newMatName').value.trim();
+  if (!name){
+    alert('Ponle un nombre al material antes de guardarlo.');
+    return;
+  }
+  const baseType = document.getElementById('newMatBase').value;
+  const multiplier = parseFloat(document.getElementById('newMatMult').value) || 0;
+  await refreshMaterialsCache();
+  materialItems.push({ id: 'm' + Date.now(), name, baseType, multiplier });
+  await setSavedMaterials(materialItems);
+
+  document.getElementById('newMatName').value = '';
+  document.getElementById('newMatBase').value = 'ventanas';
+  document.getElementById('newMatMult').value = 1;
+
+  renderMatList();
+});
+
+// ==================== FIN LISTA DE MATERIALES ====================
+
 function renderResults(result){
   const groups = result.groups;
   const anyGroup = Object.values(groups).some(g => g !== null);
@@ -991,6 +1169,10 @@ function renderResults(result){
     });
   });
 
+  if (result.materialsResult && result.materialsResult.length){
+    html += buildMaterialsTableHTML(result.materialsResult);
+  }
+
   resultsEl.innerHTML = html;
   saveCard.style.display = 'block';
   downloadPdfBtn.style.display = 'block';
@@ -1000,11 +1182,13 @@ let lastResult = null;
 let lastCfg = null;
 let lastRows = null;
 
-calcBtn.addEventListener('click', () => {
+calcBtn.addEventListener('click', async () => {
   const cfg = readConfig();
   const rows = readRows();
   const result = computeAll(rows, cfg);
   result.barLength = cfg.barLength;
+  await refreshMaterialsCache();
+  result.materialsResult = computeMaterialsList(materialItems, rows, cfg);
   lastResult = result;
   lastCfg = cfg;
   lastRows = rows;
@@ -1024,7 +1208,8 @@ saveBtn.addEventListener('click', async () => {
     totalBars: lastResult.totalBars,
     groupSummary: Object.keys(lastResult.groups)
       .filter(g => lastResult.groups[g])
-      .map(g => ({ name: g, bars: lastResult.groups[g].bars.length }))
+      .map(g => ({ name: g, bars: lastResult.groups[g].bars.length })),
+    materialsResult: lastResult.materialsResult || []
   };
   try{
     const listRes = await localDB.get('trabajos-historial').catch(() => null);
@@ -1093,6 +1278,16 @@ function buildPrintHTML(){
       html += `</div></div>`;
     });
   });
+
+  if (lastResult.materialsResult && lastResult.materialsResult.length){
+    html += `<div class="group-title">Lista de materiales</div>
+      <table class="print-win-table"><thead><tr><th>Material</th><th>Fórmula</th><th>Cantidad</th></tr></thead><tbody>`;
+    lastResult.materialsResult.forEach(m => {
+      const formulaTxt = m.baseType === 'fijo' ? 'Cantidad fija' : `${fmt(m.multiplier)} × ${MAT_BASE_LABELS[m.baseType]} (${fmt(m.base)})`;
+      html += `<tr><td>${m.name}</td><td>${formulaTxt}</td><td>${m.qty}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+  }
 
   return html;
 }
@@ -1419,7 +1614,7 @@ async function renderHistory(){
   }
 }
 
-function loadJob(job){
+async function loadJob(job){
   activeConfigSelect.value = '';
   unlockConfigFields();
   document.getElementById('barLength').value = job.cfg.barLength;
@@ -1433,6 +1628,8 @@ function loadJob(job){
   document.querySelector('.tab[data-tab="calc"]').click();
   const result = computeAll(job.rows, job.cfg);
   result.barLength = job.cfg.barLength;
+  await refreshMaterialsCache();
+  result.materialsResult = job.materialsResult && job.materialsResult.length ? job.materialsResult : computeMaterialsList(materialItems, job.rows, job.cfg);
   lastResult = result; lastCfg = job.cfg; lastRows = job.rows;
   renderResults(result);
   jobNameInput.value = job.name;
@@ -1448,6 +1645,7 @@ async function saveDraft(){
 async function loadDraft(){
   await refreshTiposCache();
   await populateActiveConfigSelect();
+  await refreshMaterialsCache();
   try{
     {
       const res = await localDB.get('trabajo-borrador');
@@ -1483,5 +1681,3 @@ loadGlassDraft();
 </script>
 </body>
 </html>
-
-
