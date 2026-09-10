@@ -370,6 +370,7 @@
           <div class="input-row"><input type="number" id="newTipoRestaTraslape" value="0.003" step="0.001"><span class="unit">m</span></div>
         </div>
       </div>
+      <label class="checkbox-row"><input type="checkbox" id="newTipoSinRiel">Este tipo no lleva riel (ej. Lite / fijo) — sus anchos no entran al cálculo de Riel</label>
       <button class="calc-btn" id="saveTipoBtn" style="margin-top:14px;">Guardar tipo de ventana</button>
     </div>
 
@@ -386,8 +387,9 @@
       <h2>Cómo funciona</h2>
       <p style="font-size:0.82rem; color:var(--ink-soft); margin:0; line-height:1.5;">
         Cada material de la lista se calcula como <b>multiplicador × base</b>. La base puede ser el total de ventanas del trabajo,
-        el total de hojas/mallas/contramarcos/traslapes (según lo configurado arriba), la suma de anchos o altos, o una cantidad fija.
-        La lista se recalcula sola cada vez que calculas los cortes en la pestaña "Calcular".
+        el total de hojas/mallas/contramarcos/traslapes (según lo configurado arriba), los <b>lances ya usados</b> en cada grupo de corte
+        (Contramarco, Hoja/Batiente, Malla, Traslape — útil cuando un material se compra por lance, no por pieza), la suma de anchos o altos,
+        o una cantidad fija. La lista se recalcula sola cada vez que calculas los cortes en la pestaña "Calcular".
       </p>
     </div>
 
@@ -405,7 +407,13 @@
             <option value="mallas">Total de mallas</option>
             <option value="contramarcos">Total de contramarcos</option>
             <option value="traslapes">Total de traslapes</option>
+            <option value="lancesContramarco">Lances usados — Contramarco</option>
+            <option value="lancesHojaBatiente">Lances usados — Hoja/Batiente</option>
+            <option value="lancesMalla">Lances usados — Malla</option>
+            <option value="lancesTraslape">Lances usados — Traslape</option>
+            <option value="lancesRiel">Lances de Riel (suma de anchos ÷ largo de lance)</option>
             <option value="anchoSum">Suma de anchos (m)</option>
+            <option value="anchoSumRiel">Suma de anchos para Riel (excluye tipos "sin riel")</option>
             <option value="altoSum">Suma de altos (m)</option>
             <option value="fijo">Cantidad fija</option>
           </select>
@@ -1011,45 +1019,76 @@ const MAT_BASE_LABELS = {
   mallas: 'Total de mallas',
   contramarcos: 'Total de contramarcos',
   traslapes: 'Total de traslapes',
+  lancesContramarco: 'Lances — Contramarco',
+  lancesHojaBatiente: 'Lances — Hoja/Batiente',
+  lancesMalla: 'Lances — Malla',
+  lancesTraslape: 'Lances — Traslape',
+  lancesRiel: 'Lances de Riel (suma de anchos ÷ largo de lance)',
   anchoSum: 'Suma de anchos (m)',
+  anchoSumRiel: 'Suma de anchos para Riel',
   altoSum: 'Suma de altos (m)',
   fijo: 'Cantidad fija'
 };
 
-function computeMaterialBases(rows, cfg){
+const GROUP_NAME_BY_BASE = {
+  lancesContramarco: 'Contramarco',
+  lancesHojaBatiente: 'Hoja / Batiente',
+  lancesMalla: 'Malla',
+  lancesTraslape: 'Traslape'
+};
+
+function computeMaterialBases(rows, cfg, groups){
+  groups = groups || {};
   const totalVentanas = rows.reduce((s,r)=>s+r.qty,0);
   const anchoSum = rows.reduce((s,r)=>s+r.ancho*r.qty,0);
+  const anchoSumRiel = rows.reduce((s,r)=>{
+    const tipo = tiposVentana.find(t => String(t.id) === String(r.tipoId)) || DEFAULT_TIPO;
+    return tipo.sinRiel ? s : s + r.ancho * r.qty;
+  },0);
   const altoSum = rows.reduce((s,r)=>s+r.alto*r.qty,0);
+  const lancesOf = (gname) => (groups[gname] ? groups[gname].bars.length : 0);
+  const lancesRiel = anchoSumRiel > 0 ? Math.ceil(anchoSumRiel / (cfg.barLength || 1) - 1e-9) : 0;
   return {
     ventanas: totalVentanas,
     hojas: totalVentanas * (cfg.hojas || 0),
     mallas: totalVentanas * (cfg.mallas || 0),
     contramarcos: totalVentanas * (cfg.contramarcos || 0),
     traslapes: totalVentanas * (cfg.traslapes || 0),
+    lancesContramarco: lancesOf(GROUP_NAME_BY_BASE.lancesContramarco),
+    lancesHojaBatiente: lancesOf(GROUP_NAME_BY_BASE.lancesHojaBatiente),
+    lancesMalla: lancesOf(GROUP_NAME_BY_BASE.lancesMalla),
+    lancesTraslape: lancesOf(GROUP_NAME_BY_BASE.lancesTraslape),
+    lancesRiel: lancesRiel,
     anchoSum: anchoSum,
+    anchoSumRiel: anchoSumRiel,
     altoSum: altoSum,
     fijo: 1
   };
 }
 
-function computeMaterialsList(materialItems, rows, cfg){
-  const bases = computeMaterialBases(rows, cfg);
+const MAT_LENGTH_BASES = ['anchoSum','anchoSumRiel','altoSum'];
+
+function computeMaterialsList(materialItems, rows, cfg, groups){
+  const bases = computeMaterialBases(rows, cfg, groups);
   return materialItems.map(m => {
     const base = bases[m.baseType] ?? 0;
-    const qty = m.baseType === 'fijo' ? Math.round(m.multiplier) : Math.ceil(base * m.multiplier - 1e-9);
-    return { name: m.name, baseType: m.baseType, multiplier: m.multiplier, base, qty };
+    const isLength = MAT_LENGTH_BASES.includes(m.baseType);
+    const raw = base * m.multiplier;
+    const qty = m.baseType === 'fijo' ? Math.round(m.multiplier) : (isLength ? Math.round(raw) : Math.ceil(raw - 1e-9));
+    return { name: m.name, baseType: m.baseType, multiplier: m.multiplier, base, qty, isLength };
   });
+}
+
+function fmtMatQty(m){
+  return m.isLength ? (fmt(m.qty) + ' m') : String(m.qty);
 }
 
 function buildMaterialsTableHTML(materialsResult){
   if (!materialsResult || materialsResult.length === 0) return '';
   let html = `<div class="group-title">Lista de materiales</div>
-    <div class="card"><table class="mat-tbl"><thead><tr><th>Material</th><th>Fórmula</th><th style="text-align:right;">Cantidad</th></tr></thead><tbody>`;
+    <div class="card"><table class="mat-tbl"><thead><tr><th>Material</th><th style="text-align:right;">Cantidad</th></tr></thead><tbody>`;
   materialsResult.forEach(m => {
-    const formulaTxt = m.baseType === 'fijo'
-      ? 'Cantidad fija'
-      : `${fmt(m.multiplier)} × ${MAT_BASE_LABELS[m.baseType]} (${fmt(m.base)})`;
-    html += `<tr><td>${m.name}</td><td class="mat-formula">${formulaTxt}</td><td class="mat-qty">${m.qty}</td></tr>`;
+    html += `<tr><td>${m.name}</td><td class="mat-qty">${fmtMatQty(m)}</td></tr>`;
   });
   html += `</tbody></table></div>`;
   return html;
@@ -1067,6 +1106,11 @@ async function setSavedMaterials(list){
 }
 
 const DEFAULT_MATERIALS = [
+  { id: 'm0a', name: 'Contramarco', baseType: 'lancesContramarco', multiplier: 1 },
+  { id: 'm0b', name: 'Hoja corrediza 60', baseType: 'lancesHojaBatiente', multiplier: 1 },
+  { id: 'm0c', name: 'Batiente 80', baseType: 'lancesHojaBatiente', multiplier: 1 },
+  { id: 'm0d', name: 'Marco Mosquitero', baseType: 'lancesMalla', multiplier: 1 },
+  { id: 'm0e', name: 'Riel', baseType: 'lancesRiel', multiplier: 1 },
   { id: 'm1', name: 'Cierres de giro', baseType: 'ventanas', multiplier: 1 },
   { id: 'm2', name: 'Rodos dobles con canal', baseType: 'ventanas', multiplier: 4 },
   { id: 'm3', name: 'Rodos para malla', baseType: 'ventanas', multiplier: 2 },
@@ -1091,7 +1135,8 @@ async function renderMatList(){
   materialItems.forEach(m => {
     const div = document.createElement('div');
     div.className = 'history-item';
-    const formulaTxt = m.baseType === 'fijo' ? `Cantidad fija: ${fmt(m.multiplier)}` : `${fmt(m.multiplier)} × ${MAT_BASE_LABELS[m.baseType]}`;
+    const isLength = MAT_LENGTH_BASES.includes(m.baseType);
+    const formulaTxt = m.baseType === 'fijo' ? `Cantidad fija: ${fmt(m.multiplier)}` : `${fmt(m.multiplier)} × ${MAT_BASE_LABELS[m.baseType]}${isLength ? ' (resultado en m)' : ''}`;
     div.innerHTML = `
       <div class="hi-top"><span class="hi-name">${m.name}</span></div>
       <div class="hi-stats"><span>${formulaTxt}</span></div>
@@ -1188,7 +1233,7 @@ calcBtn.addEventListener('click', async () => {
   const result = computeAll(rows, cfg);
   result.barLength = cfg.barLength;
   await refreshMaterialsCache();
-  result.materialsResult = computeMaterialsList(materialItems, rows, cfg);
+  result.materialsResult = computeMaterialsList(materialItems, rows, cfg, result.groups);
   lastResult = result;
   lastCfg = cfg;
   lastRows = rows;
@@ -1281,10 +1326,9 @@ function buildPrintHTML(){
 
   if (lastResult.materialsResult && lastResult.materialsResult.length){
     html += `<div class="group-title">Lista de materiales</div>
-      <table class="print-win-table"><thead><tr><th>Material</th><th>Fórmula</th><th>Cantidad</th></tr></thead><tbody>`;
+      <table class="print-win-table"><thead><tr><th>Material</th><th>Cantidad</th></tr></thead><tbody>`;
     lastResult.materialsResult.forEach(m => {
-      const formulaTxt = m.baseType === 'fijo' ? 'Cantidad fija' : `${fmt(m.multiplier)} × ${MAT_BASE_LABELS[m.baseType]} (${fmt(m.base)})`;
-      html += `<tr><td>${m.name}</td><td>${formulaTxt}</td><td>${m.qty}</td></tr>`;
+      html += `<tr><td>${m.name}</td><td>${fmtMatQty(m)}</td></tr>`;
     });
     html += `</tbody></table>`;
   }
@@ -1467,7 +1511,8 @@ document.getElementById('saveCfgBtn').addEventListener('click', async () => {
 
 const DEFAULT_TIPO = {
   id: 'default', name: 'Corrediza 2 hojas (estándar)',
-  divAnchoH: 2, restaAnchoH: 0, restaAltoH: 0.077, restaAnchoM: 0.01, restaAltoM: 0, restaTraslape: 0.003
+  divAnchoH: 2, restaAnchoH: 0, restaAltoH: 0.077, restaAnchoM: 0.01, restaAltoM: 0, restaTraslape: 0.003,
+  sinRiel: false
 };
 let tiposVentana = [DEFAULT_TIPO];
 
@@ -1524,6 +1569,7 @@ async function renderTipoList(){
         <span>Ancho M: <b>Ancho H − ${fmt(t.restaAnchoM)}</b></span>
         <span>Alto M: <b>Alto H − ${fmt(t.restaAltoM)}</b></span>
         <span>Traslape: <b>Alto H − ${fmt(t.restaTraslape)}</b></span>
+        ${t.sinRiel ? '<span>🚫 No lleva riel</span>' : ''}
       </div>
       <div class="history-actions">
         <button class="del-tipo-btn">Eliminar</button>
@@ -1555,7 +1601,8 @@ document.getElementById('saveTipoBtn').addEventListener('click', async () => {
     restaAltoH: parseFloat(document.getElementById('newTipoRestaAltoH').value) || 0,
     restaAnchoM: parseFloat(document.getElementById('newTipoRestaAnchoM').value) || 0,
     restaAltoM: parseFloat(document.getElementById('newTipoRestaAltoM').value) || 0,
-    restaTraslape: parseFloat(document.getElementById('newTipoRestaTraslape').value) || 0
+    restaTraslape: parseFloat(document.getElementById('newTipoRestaTraslape').value) || 0,
+    sinRiel: document.getElementById('newTipoSinRiel').checked
   };
   const tipos = await getSavedTipos();
   tipos.push(tipo);
@@ -1570,6 +1617,7 @@ document.getElementById('saveTipoBtn').addEventListener('click', async () => {
   document.getElementById('newTipoRestaAnchoM').value = 0.01;
   document.getElementById('newTipoRestaAltoM').value = 0;
   document.getElementById('newTipoRestaTraslape').value = 0.003;
+  document.getElementById('newTipoSinRiel').checked = false;
 
   renderTipoList();
 });
@@ -1629,7 +1677,7 @@ async function loadJob(job){
   const result = computeAll(job.rows, job.cfg);
   result.barLength = job.cfg.barLength;
   await refreshMaterialsCache();
-  result.materialsResult = job.materialsResult && job.materialsResult.length ? job.materialsResult : computeMaterialsList(materialItems, job.rows, job.cfg);
+  result.materialsResult = job.materialsResult && job.materialsResult.length ? job.materialsResult : computeMaterialsList(materialItems, job.rows, job.cfg, result.groups);
   lastResult = result; lastCfg = job.cfg; lastRows = job.rows;
   renderResults(result);
   jobNameInput.value = job.name;
