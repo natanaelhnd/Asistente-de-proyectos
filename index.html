@@ -1,1 +1,2031 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optimizador de Cortes - Ventanas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  :root{
+    --paper:#F5F3EF;
+    --panel:#FFFFFF;
+    --ink:#23262B;
+    --ink-soft:#5B5F66;
+    --steel:#3E5C76;
+    --steel-dark:#2C4256;
+    --orange:#E0621D;
+    --alu:#C9CCD1;
+    --alu-line:#AEB2B9;
+    --good:#4C7A5E;
+    --border:#E1DED6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Space Grotesk', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:820px; margin:0 auto; padding:24px 16px 60px; }
+
+  header{ margin-bottom:20px; }
+  header h1{ font-size:1.4rem; font-weight:700; margin:0 0 4px; letter-spacing:-0.01em; }
+  header p{ margin:0; color:var(--ink-soft); font-size:0.88rem; line-height:1.4; }
+
+  .tabs{ display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .tab{
+    padding:10px 16px; font-size:0.85rem; font-weight:600; color:var(--ink-soft);
+    cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .tab.active{ color:var(--steel-dark); border-bottom-color:var(--steel-dark); }
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:14px; }
+  .card h2{ font-size:0.76rem; font-weight:600; color:var(--ink-soft); margin:0 0 12px; padding-bottom:8px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  .card h2 .chev{ font-size:0.7rem; color:var(--ink-soft); }
+
+  .config-grid{ display:flex; gap:14px; flex-wrap:wrap; }
+  .cfg-field{ flex:1; min-width:120px; }
+  .cfg-field label{ display:block; font-size:0.72rem; color:var(--ink-soft); margin-bottom:5px; }
+  .cfg-field .input-row{ display:flex; align-items:baseline; border-bottom:2px solid var(--steel); padding-bottom:3px; }
+  .cfg-field input{ border:none; background:none; font-family:'IBM Plex Mono', monospace; font-size:1.02rem; font-weight:600; color:var(--ink); width:100%; outline:none; padding:0; }
+  .cfg-field .unit{ font-family:'IBM Plex Mono', monospace; font-size:0.78rem; color:var(--ink-soft); margin-left:4px; }
+  .cfg-field input[readonly]{ color:var(--steel-dark); }
+  .cfg-field .input-row:has(input[readonly]){ background:#F1F3F5; border-bottom-color:#C9CCD1; padding:3px 6px; margin:0 -6px; border-radius:4px 4px 0 0; }
+
+  .tbl-scroll{ overflow-x:auto; }
+  table.win{ width:100%; border-collapse:collapse; min-width:830px; }
+  table.win th{ text-align:left; font-size:0.68rem; color:var(--ink-soft); font-weight:600; padding:0 6px 8px 0; white-space:nowrap; }
+  table.win td{ padding:5px 6px 5px 0; vertical-align:middle; }
+  table.win input{ width:100%; border:none; border-bottom:1px solid var(--border); background:none; font-family:'IBM Plex Mono', monospace; font-size:0.88rem; color:var(--ink); padding:6px 2px; outline:none; }
+  table.win input:focus{ border-bottom-color:var(--steel); }
+
+  table.win input[readonly]{ background:#F1F3F5; color:var(--steel-dark); cursor:default; border-bottom-color:#C9CCD1; }
+  table.win select.f-tipo{ width:100%; min-width:150px; border:none; border-bottom:1px solid var(--border); background:none; font-family:'Space Grotesk', sans-serif; font-size:0.82rem; color:var(--ink); padding:6px 2px; outline:none; }
+  table.win select.f-tipo:focus{ border-bottom-color:var(--steel); }
+  table.win input.qty-input{ text-align:center; }
+  .del-btn{ background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:1rem; line-height:1; padding:4px 6px; border-radius:6px; }
+  .del-btn:hover{ background:#F2E4DC; color:var(--orange); }
+
+  .add-row-btn{ margin-top:10px; background:none; border:1px dashed var(--alu-line); color:var(--steel-dark); font-family:'Space Grotesk', sans-serif; font-size:0.82rem; font-weight:600; padding:8px 14px; border-radius:7px; cursor:pointer; width:100%; }
+  .add-row-btn:hover{ border-color:var(--steel); background:#EDF1F4; }
+
+  .calc-btn{ width:100%; background:var(--steel-dark); color:#fff; border:none; padding:14px; border-radius:9px; font-family:'Space Grotesk', sans-serif; font-size:0.98rem; font-weight:600; cursor:pointer; margin-top:6px; }
+  .calc-btn:hover{ background:var(--steel); }
+
+  .save-row{ display:flex; gap:8px; margin-top:10px; }
+  .save-row input{ flex:1; border:1px solid var(--border); border-radius:7px; padding:10px 12px; font-family:'Space Grotesk', sans-serif; font-size:0.88rem; outline:none; }
+  .save-row input:focus{ border-color:var(--steel); }
+  .save-btn{ background:var(--good); color:#fff; border:none; padding:10px 16px; border-radius:7px; font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:0.85rem; cursor:pointer; white-space:nowrap; }
+  .save-btn:hover{ opacity:0.9; }
+
+  .group-summary{ display:flex; gap:0; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:10px; }
+  .group-summary .stat{ flex:1; background:var(--panel); padding:12px 10px; border-right:1px solid var(--border); }
+  .group-summary .stat:last-child{ border-right:none; }
+  .group-summary .stat .num{ font-family:'IBM Plex Mono', monospace; font-size:1.25rem; font-weight:600; color:var(--steel-dark); display:block; }
+  .group-summary .stat.waste .num{ color:var(--orange); }
+  .group-summary .stat.eff .num{ color:var(--good); }
+  .group-summary .stat .lbl{ font-size:0.66rem; color:var(--ink-soft); margin-top:2px; display:block; }
+
+  .group-title{ font-size:0.95rem; font-weight:700; margin:22px 0 8px; padding-bottom:6px; border-bottom:2px solid var(--steel-dark); }
+  .group-title:first-child{ margin-top:0; }
+
+  .bar-block{ margin-bottom:10px; }
+  .bar-title{ font-family:'IBM Plex Mono', monospace; font-size:0.74rem; color:var(--ink-soft); margin-bottom:4px; display:flex; justify-content:space-between; }
+  .bar-title .waste-tag{ color:var(--orange); }
+  .bar-visual{ display:flex; height:36.8px; border-radius:6px; overflow:visible; border:1px solid var(--alu-line);
+    background:repeating-linear-gradient(90deg, var(--alu), var(--alu) 2px, #D6D9DD 2px, #D6D9DD 4px); }
+  .segment{ position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; border-right:2px solid var(--paper);
+    color:#fff; font-family:'IBM Plex Mono', monospace; font-size:0.66rem; font-weight:600; overflow:visible; white-space:nowrap; min-width:0; line-height:1.15; }
+  .segment .seg-label{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); padding:0 3px; overflow:visible; white-space:nowrap; display:flex; flex-direction:column; align-items:center; gap:1px; z-index:2; pointer-events:none; }
+  .segment .seg-code{ font-family:Arial, Helvetica, sans-serif; font-size:0.72rem; font-weight:900; color:#111827; letter-spacing:0.01em; font-variant-numeric:tabular-nums; text-shadow:none; background:transparent; border-radius:0; padding:0 3px; line-height:1.12; }
+  .segment .seg-len{ font-family:Arial, Helvetica, sans-serif; font-size:0.69rem; font-weight:900; color:#111827; letter-spacing:0; font-variant-numeric:tabular-nums; text-shadow:none; background:transparent; border-radius:0; padding:0 3px; line-height:1.12; }
+  .segment.leftover{ background:transparent !important; color:var(--ink-soft); font-weight:500; }
+  .segment:last-child{ border-right:none; }
+
+  .empty-note{ color:var(--ink-soft); font-size:0.85rem; text-align:center; padding:20px 0; }
+
+  .checkbox-row{ display:flex; align-items:center; gap:9px; font-size:0.82rem; color:var(--ink); margin-top:14px; }
+  .checkbox-row input{ width:17px; height:17px; accent-color:var(--steel); }
+  table.win.glass-tbl{ min-width:380px; }
+
+  .glass-totals{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .glass-totals .stat{ flex:1; min-width:100px; background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:10px 12px; }
+  .glass-totals .num{ display:block; font-family:'JetBrains Mono', monospace; font-weight:700; font-size:1.1rem; color:var(--steel-dark); }
+  .glass-totals .num.warn{ color:var(--orange); }
+  .glass-totals .lbl{ font-size:0.66rem; color:var(--ink-soft); margin-top:2px; }
+
+  .error-box{ background:#FBEAE4; border:1px solid #E8B7A3; border-radius:9px; padding:12px 14px; margin-bottom:14px; font-size:0.82rem; color:#8A3A1E; }
+  .error-box b{ display:block; margin-bottom:4px; }
+
+  .sheet-block{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:8px 10px; margin-bottom:14px; }
+  .sheet-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+  .sheet-head h3{ margin:0; font-size:0.76rem; font-weight:700; }
+  .sheet-head .eff{ font-family:'JetBrains Mono', monospace; font-size:0.7rem; color:var(--good); font-weight:700; }
+  .sheet-sub{ font-size:0.64rem; color:var(--ink-soft); margin:0 0 6px; }
+  .sheet-svg-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:6px; }
+
+  .history-item{ background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:12px 14px; margin-bottom:10px; cursor:pointer; }
+  .history-item:hover{ border-color:var(--steel); }
+  .history-item .hi-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+  .history-item .hi-name{ font-weight:600; font-size:0.92rem; }
+  .history-item .hi-date{ font-family:'IBM Plex Mono', monospace; font-size:0.72rem; color:var(--ink-soft); }
+  .history-item .hi-stats{ font-size:0.78rem; color:var(--ink-soft); display:flex; gap:14px; flex-wrap:wrap; }
+  .history-item .hi-stats b{ color:var(--steel-dark); font-family:'IBM Plex Mono', monospace; }
+  .history-actions{ display:flex; gap:8px; margin-top:8px; }
+  .history-actions button{ font-size:0.76rem; padding:5px 10px; border-radius:6px; border:1px solid var(--border); background:none; cursor:pointer; color:var(--ink-soft); }
+  .history-actions button:hover{ border-color:var(--orange); color:var(--orange); }
+
+  .mat-tbl{ width:100%; border-collapse:collapse; margin-top:4px; }
+  .mat-tbl th{ text-align:left; font-size:0.68rem; color:var(--ink-soft); font-weight:600; padding:0 6px 8px 0; white-space:nowrap; }
+  .mat-tbl td{ padding:8px 6px; border-top:1px solid var(--border); font-size:0.86rem; }
+  .mat-tbl td.mat-qty{ font-family:'JetBrains Mono', monospace; font-weight:700; color:var(--steel-dark); text-align:right; white-space:nowrap; }
+  .mat-tbl td.mat-formula{ font-size:0.72rem; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace; }
+
+  footer{ text-align:center; font-size:0.72rem; color:var(--ink-soft); margin-top:16px; }
+
+  #printArea{
+    position:fixed; left:-10000px; top:0; width:760px; background:#fff; padding:20px;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .print-header h1{ font-size:1.25rem; margin:0 0 4px; }
+  .print-meta{ font-size:0.85rem; color:var(--ink-soft); margin-bottom:6px; display:flex; gap:16px; flex-wrap:wrap; }
+  .print-cfg{ font-size:0.76rem; color:var(--ink-soft); margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+  .print-win-table{ width:100%; border-collapse:collapse; margin-bottom:14px; font-size:0.8rem; }
+  .print-win-table th, .print-win-table td{ border:1px solid var(--border); padding:4px 8px; text-align:left; }
+  .print-total{ font-weight:700; margin-bottom:16px; font-size:0.9rem; }
+  .print-group-stats{ font-size:0.66rem; color:var(--ink-soft); margin-bottom:6px; }
+  /* Diseño exclusivo del PDF: menos espacio y más lances por página. */
+  #printArea { padding: 10px 14px; }
+  #printArea .print-compact-header { margin-bottom: 5px; }
+  #printArea .print-header h1 { font-size: 1.05rem; margin: 0 0 3px; }
+  #printArea .print-meta { font-size: .72rem; margin-bottom: 5px; gap: 12px; }
+  #printArea .group-title { margin: 6px 0 3px; padding-bottom: 3px; font-size: .87rem; }
+  #printArea .print-group-stats { margin-bottom: 5px; font-size: .66rem; }
+  #printArea .bar-block { margin-bottom: 3px; break-inside: avoid; page-break-inside: avoid; }
+  #printArea .bar-title { margin-bottom: 1px; font-size: .68rem; line-height: 1.1; }
+  #printArea .bar-visual { height: 36.8px; }
+  #printArea .segment .seg-label { line-height: 1.12; }
+
+  .pdf-choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;}
+  .pdf-choice-grid label{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:7px;font-size:.83rem;cursor:pointer;background:#fafafa;}
+  .pdf-choice-grid input{width:17px;height:17px;accent-color:var(--steel-dark);}
+  .manual-mat-table input { width:100%; min-width:90px; padding:9px 7px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#243746; font:inherit; box-sizing:border-box; }
+  .manual-mat-table td { padding:5px 4px; }
+  .manual-mat-delete { border:0; border-radius:6px; background:#fbe8e7; color:#963a3a; cursor:pointer; font-size:1.3rem; min-width:30px; }
+
+  /* Tablas de materiales con apariencia de hoja de cálculo. */
+  .project-sheet-wrap{overflow-x:auto;margin-top:8px;border:1px solid #b8c4d0;border-radius:4px;background:white}
+  .project-sheet{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff;color:#263442;font-size:.83rem}
+  .project-sheet th,.project-sheet td{border:1px solid #cbd5df;padding:0;height:35px;text-align:left;vertical-align:middle}
+  .project-sheet th{background:#e9eef4;font-weight:700;padding:7px 10px}
+  .project-sheet th:first-child,.project-sheet td:first-child{width:125px;text-align:center}
+  .project-sheet td{padding:7px 10px}
+  .project-sheet .project-action-col,.project-sheet td:last-child:has(.manual-mat-delete){width:42px;text-align:center}
+  .project-sheet input{display:block;box-sizing:border-box;width:100%;min-height:33px;padding:6px 8px;border:0;border-radius:0;background:transparent;font:inherit;color:inherit}
+  .project-sheet input:focus{outline:2px solid #2b75bc;outline-offset:-2px;background:#f5faff}
+  /* Distribución horizontal de las dos tablas dentro de cada proyecto. */
+  .project-tables-row{display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);gap:14px;align-items:start;margin-top:10px}
+  .project-tables-row > .project-table-panel{min-width:0}
+  .project-table-panel h4{margin:0 0 7px;font-size:.86rem}
+  .project-table-panel .project-sheet-wrap{margin-top:0}
+  @media(max-width:600px){
+    .project-tables-row{grid-template-columns:minmax(0,42fr) minmax(0,58fr);gap:7px}
+    .project-table-panel h4{font-size:.7rem;line-height:1.25;min-height:30px}
+    .project-sheet{font-size:.7rem}
+    .project-sheet th{padding:5px 3px}
+    .project-sheet td{padding:5px 3px}
+    .project-sheet th:first-child,.project-sheet td:first-child{width:55px}
+    .project-edit-sheet th,.project-edit-sheet td{padding:0}
+    .project-edit-sheet td:first-child{width:21px}
+    .project-edit-sheet input{padding:3px 2px}
+  }
+  /* Minuta editable compacta; no afecta la tabla de visualización. */
+  .project-edit-sheet th,.project-edit-sheet td{height:27px;padding:0}
+  .project-edit-sheet td:first-child{width:21px}
+  .project-edit-sheet .project-action-col,.project-edit-sheet td:last-child:has(.manual-mat-delete){width:32px}
+  .project-edit-sheet input{min-height:27px;padding:3px 6px;font-size:.78rem}
+  .project-edit-sheet td:first-child input{padding:3px 0;text-align:center;font-size:.78rem;font-variant-numeric:tabular-nums}
+  .project-edit-sheet .minuta-heading{background:#e9eef4;padding:0}
+  .project-edit-sheet .minuta-heading input{font-weight:700;text-align:center;font-size:.84rem;min-height:32px}
+  .project-edit-sheet .manual-mat-delete{font-size:1rem;min-width:24px;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Optimizador de Cortes — Ventanas</h1>
+    <p>Introduce solamente el ancho y alto de cada ventana. Las medidas de Hoja, Malla y Traslape se calculan automáticamente con las fórmulas de fabricación configuradas.</p>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="calc">Calcular</div>
+    <div class="tab" data-tab="glass">Vidrio</div>
+    <div class="tab" data-tab="configs">Configuraciones</div>
+    <div class="tab" data-tab="materiales">Materiales</div>
+    <div class="tab" data-tab="history">Historial</div>
+  </div>
+
+  <div class="view active" id="view-calc">
+
+    <div class="card">
+      <h2>Configuración <span class="chev" id="cfgChev">▲</span></h2>
+      <div id="cfgBody">
+        <div class="cfg-select-row" style="margin-bottom:14px;">
+          <label style="display:block; font-size:0.72rem; color:var(--ink-soft); margin-bottom:5px;">Configuración activa</label>
+          <select id="activeConfigSelect" style="width:100%; border:1px solid var(--border); border-radius:7px; padding:9px 10px; font-family:'Space Grotesk', sans-serif; font-size:0.88rem; background:#fff; outline:none;">
+            <option value="">Manual (editar campos abajo)</option>
+          </select>
+          <p id="cfgLockNote" style="display:none; font-size:0.74rem; color:var(--ink-soft); margin:6px 0 0;">Campos bloqueados por esta configuración. Cambia a "Manual" o edítala en la pestaña Configuraciones.</p>
+        </div>
+        <div class="config-grid">
+          <div class="cfg-field">
+            <label>Largo del lance</label>
+            <div class="input-row"><input type="number" id="barLength" value="5.80" step="0.01" min="0.1"><span class="unit">m</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Kerf (pérdida por corte)</label>
+            <div class="input-row"><input type="number" id="kerf" value="0" step="0.001" min="0"><span class="unit">m</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Hojas por ventana</label>
+            <div class="input-row"><input type="number" id="hojasPorVentana" value="2" step="1" min="0"><span class="unit">pz</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Mallas por ventana</label>
+            <div class="input-row"><input type="number" id="mallasPorVentana" value="1" step="1" min="0"><span class="unit">pz</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Traslapes por ventana</label>
+            <div class="input-row"><input type="number" id="traslapesPorVentana" value="2" step="1" min="0"><span class="unit">pz</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Contramarcos por ventana</label>
+            <div class="input-row"><input type="number" id="contramarcosPorVentana" value="1" step="1" min="0"><span class="unit">pz</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Ventanas del trabajo <span class="chev" id="winChev">▲</span></h2>
+      <div id="winBodyWrap">
+        <div class="tbl-scroll">
+          <table class="win">
+            <thead>
+              <tr>
+                <th>Tipo</th><th>Ancho</th><th>Alto</th><th>Ancho H (auto)</th><th>Alto H (auto)</th><th>Ancho M (auto)</th><th>Alto M (auto)</th><th>Traslape (auto)</th><th>Cant.</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="winBody"></tbody>
+          </table>
+        </div>
+        <button class="add-row-btn" id="addRowBtn">+ Agregar tamaño de ventana</button>
+      </div>
+    </div>
+
+    <button class="calc-btn" id="calcBtn">Calcular cortes</button>
+
+    <button class="calc-btn" id="downloadPdfBtn" style="display:none; margin-top:8px; background:var(--good);">⬇️ Descargar PDF</button>
+
+    <div class="card" id="combinedPdfCard" style="display:none; margin-top:14px;">
+      <h2 style="cursor:default;">Crear PDF combinado</h2>
+      <p style="font-size:.82rem;color:var(--ink-soft);margin:0 0 10px;">Elige las hojas que deseas incluir en un solo PDF. Los PDF individuales siguen disponibles.</p>
+      <div id="combinedPdfChoices" class="pdf-choice-grid"></div>
+      <button class="calc-btn" id="downloadCombinedPdfBtn" type="button" style="margin-top:12px;background:var(--good);">⬇ Descargar PDF combinado</button>
+      <p id="combinedPdfError" role="status" style="font-size:.78rem;color:#a13e21;margin:8px 0 0;display:none;">Selecciona al menos una hoja.</p>
+    </div>
+
+    <div id="cutSheets" style="display:none; margin-top:20px;">
+      <div class="tabs" id="cutSheetTabs" aria-label="Hojas de corte"></div>
+      <div class="card" style="padding:12px 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div><strong id="cutSheetHeading">Contramarco</strong><div style="font-size:.75rem;color:var(--ink-soft)">Hoja de optimización independiente</div></div>
+          <button class="save-btn" id="downloadSheetPdfBtn" type="button">⬇ Descargar PDF de esta hoja</button>
+        </div>
+      </div>
+    </div>
+    <div id="results" style="margin-top:12px;"></div>
+
+    <div class="card" id="saveCard" style="display:none;">
+      <h2>Guardar este trabajo</h2>
+      <div class="save-row">
+        <input type="text" id="jobName" placeholder="Nombre del trabajo (ej. Casa Suyapa)">
+        <button class="save-btn" id="saveBtn">Guardar</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="view" id="view-glass">
+
+    <div class="card">
+      <h2>Lámina de vidrio <span class="chev" id="sheetChev">▲</span></h2>
+      <div id="sheetBody">
+        <div class="config-grid">
+          <div class="cfg-field">
+            <label>Ancho de la lámina</label>
+            <div class="input-row"><input type="number" id="sheetW" value="3.30" step="0.01" min="0.1"><span class="unit">m</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Alto de la lámina</label>
+            <div class="input-row"><input type="number" id="sheetH" value="2.14" step="0.01" min="0.1"><span class="unit">m</span></div>
+          </div>
+          <div class="cfg-field">
+            <label>Grosor de corte (kerf)</label>
+            <div class="input-row"><input type="number" id="glassKerf" value="0" step="0.001" min="0"><span class="unit">m</span></div>
+          </div>
+        </div>
+        <label class="checkbox-row"><input type="checkbox" id="allowRotate">Permitir rotar piezas 90° si así aprovecha más</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Piezas a cortar <span class="chev" id="piecesChev">▲</span></h2>
+      <div id="piecesBody">
+        <div class="tbl-scroll">
+          <table class="win glass-tbl">
+            <thead><tr><th>Ancho</th><th>Alto</th><th>Cant.</th><th></th></tr></thead>
+            <tbody id="glassBody"></tbody>
+          </table>
+        </div>
+        <button class="add-row-btn" id="addGlassRowBtn">+ Agregar medida</button>
+      </div>
+    </div>
+
+    <button class="calc-btn" id="calcGlassBtn">Calcular láminas</button>
+    <button class="calc-btn" id="downloadGlassPdfBtn" style="display:none; margin-top:8px; background:var(--good);">⬇️ Descargar PDF</button>
+
+    <div id="glassResults" style="margin-top:18px;"></div>
+
+    <p class="empty-note" style="text-align:left; padding:0; margin-top:14px;">Cada rectángulo con borde de color es una pieza. Las zonas rayadas y etiquetadas "Sobrante" son lo que queda de la lámina, con su medida exacta. El borde de cada pieza es la línea de corte.</p>
+
+  </div>
+
+  <div class="view" id="view-configs">
+
+    <div class="card">
+      <h2>Nueva configuración</h2>
+      <div class="save-row" style="margin-bottom:14px;">
+        <input type="text" id="newCfgName" placeholder="Nombre (ej. Ventana PVC blanco)">
+      </div>
+      <div class="config-grid">
+        <div class="cfg-field">
+          <label>Largo del lance</label>
+          <div class="input-row"><input type="number" id="newCfgBarLength" value="5.80" step="0.01" min="0.1"><span class="unit">m</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Kerf (pérdida por corte)</label>
+          <div class="input-row"><input type="number" id="newCfgKerf" value="0" step="0.001" min="0"><span class="unit">m</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Hojas por ventana</label>
+          <div class="input-row"><input type="number" id="newCfgHojas" value="2" step="1" min="0"><span class="unit">pz</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Mallas por ventana</label>
+          <div class="input-row"><input type="number" id="newCfgMallas" value="1" step="1" min="0"><span class="unit">pz</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Traslapes por ventana</label>
+          <div class="input-row"><input type="number" id="newCfgTraslapes" value="2" step="1" min="0"><span class="unit">pz</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Contramarcos por ventana</label>
+          <div class="input-row"><input type="number" id="newCfgContramarcos" value="1" step="1" min="0"><span class="unit">pz</span></div>
+        </div>
+      </div>
+      <button class="calc-btn" id="saveCfgBtn" style="margin-top:14px;">Guardar configuración</button>
+    </div>
+
+    <div class="card">
+      <h2>Configuraciones guardadas</h2>
+      <div id="cfgList"><p class="empty-note">Todavía no has guardado ninguna configuración.</p></div>
+    </div>
+
+    <div class="card">
+      <h2 id="tipoEditorTitle">Nuevo tipo de ventana / predeterminada</h2>
+      <p style="font-size:0.78rem; color:var(--ink-soft); margin:-4px 0 12px;">Define cómo se calculan Ancho H, Alto H, Ancho M, Alto M y Traslape a partir de Ancho y Alto para este tipo.</p>
+      <div class="save-row" style="margin-bottom:14px;">
+        <input type="text" id="newTipoName" placeholder="Nombre (ej. Corrediza 3 hojas)">
+      </div>
+      <div class="config-grid">
+        <div class="cfg-field">
+          <label>Ancho H = Ancho ÷ N</label>
+          <div class="input-row"><input type="number" id="newTipoDivAnchoH" value="2" step="0.1" min="0.1"></div>
+        </div>
+        <div class="cfg-field">
+          <label>Ancho H = ... − ajuste</label>
+          <div class="input-row"><input type="number" id="newTipoRestaAnchoH" value="0" step="0.001"><span class="unit">m</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Alto H = Alto − ajuste</label>
+          <div class="input-row"><input type="number" id="newTipoRestaAltoH" value="0.077" step="0.001"><span class="unit">m</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Ancho M = Ancho H − ajuste</label>
+          <div class="input-row"><input type="number" id="newTipoRestaAnchoM" value="0.01" step="0.001"><span class="unit">m</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Alto M = Alto H − ajuste</label>
+          <div class="input-row"><input type="number" id="newTipoRestaAltoM" value="0" step="0.001"><span class="unit">m</span></div>
+        </div>
+        <div class="cfg-field">
+          <label>Traslape = Alto H − ajuste</label>
+          <div class="input-row"><input type="number" id="newTipoRestaTraslape" value="0.003" step="0.001"><span class="unit">m</span></div>
+        </div>
+      </div>
+      <label class="checkbox-row"><input type="checkbox" id="newTipoSinRiel">Este tipo no lleva riel (ej. Lite / fijo) — sus anchos no entran al cálculo de Riel</label>
+      <label class="checkbox-row"><input type="checkbox" id="newTipoPreset">Marcar como predeterminada propuesta (editable por ahora; se hará fija cuando revisemos el código)</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;"><button class="calc-btn" id="saveTipoBtn" style="flex:1;">Guardar tipo de ventana</button><button class="calc-btn" id="cancelTipoEditBtn" type="button" style="display:none;flex:1;background:#64748b;">Cancelar edición</button></div>
+      <p style="font-size:.76rem;color:var(--ink-soft)">Las predeterminadas propuestas se guardan en este dispositivo hasta integrarlas al código. Exporta el archivo JSON para enviármelo y convertirlas en predeterminadas fijas para todos los dispositivos.</p>
+    </div>
+
+    <div class="card">
+      <h2>Tipos de ventana guardados</h2><button class="calc-btn" id="exportTiposBtn" style="margin-bottom:12px;">Exportar configuraciones para convertirlas en fijas (.json)</button>
+      <div id="tipoList"><p class="empty-note">Solo tienes el tipo estándar (corrediza 2 hojas). Crea otros arriba.</p></div>
+    </div>
+
+  </div>
+
+  <div class="view" id="view-materiales">
+    <div class="card">
+      <h2>Materiales por proyecto</h2>
+      <p style="font-size:.82rem;color:var(--ink-soft);line-height:1.5">Cada proyecto contiene una tabla automática con los lances calculados y otra tabla manual e independiente para registrar materiales.</p>
+      <div id="materialProjects"></div>
+    </div>
+  </div>
+
+  <div class="view" id="view-history">
+    <div id="historyList"></div>
+  </div>
+
+  <footer>Contramarco, Hoja, Hojas de Puerta, Malla y Traslape se cortan por separado — nunca se mezclan entre sí.</footer>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+// Almacenamiento local en el dispositivo del usuario (no depende de estar dentro de Claude).
+// Misma forma de uso que window.storage, pero guardado real en el navegador con localStorage.
+const localDB = {
+  async get(key){
+    try{
+      const raw = localStorage.getItem('ov_' + key);
+      return raw === null ? null : { key, value: raw };
+    } catch(e){ return null; }
+  },
+  async set(key, value){
+    try{ localStorage.setItem('ov_' + key, value); return { key, value }; }
+    catch(e){ return null; }
+  }
+};
+
+const PALETTE = ['#3E5C76','#E0621D','#4C7A5E','#8B5FBF','#C9A227','#2C4256','#B0473A','#3E8E8B'];
+// Mismos tonos originales, aclarados para mejorar la lectura de las medidas.
+const BAR_PALETTE = PALETTE.map(hex => {
+  const rgb = [1,3,5].map(i => parseInt(hex.slice(i,i+2),16));
+  return '#' + rgb.map(v => Math.round(v * 0.38 + 255 * 0.62).toString(16).padStart(2,'0')).join('');
+});
+const FIELDS = ['ancho','alto','anchoH','altoH','anchoM','altoM','traslape','qty'];
+
+function applyInputModes(root){
+  (root || document).querySelectorAll('input[type="number"]').forEach(inp => {
+    if (inp.hasAttribute('inputmode')) return;
+    const step = inp.getAttribute('step');
+    const isIntStep = step !== null && step.indexOf('.') === -1 && parseFloat(step) >= 1;
+    inp.setAttribute('inputmode', isIntStep ? 'numeric' : 'decimal');
+  });
+}
+
+const winBody = document.getElementById('winBody');
+const addRowBtn = document.getElementById('addRowBtn');
+const calcBtn = document.getElementById('calcBtn');
+const resultsEl = document.getElementById('results');
+const saveCard = document.getElementById('saveCard');
+const saveBtn = document.getElementById('saveBtn');
+const jobNameInput = document.getElementById('jobName');
+const cfgBody = document.getElementById('cfgBody');
+const cfgChev = document.getElementById('cfgChev');
+const activeConfigSelect = document.getElementById('activeConfigSelect');
+const cfgLockNote = document.getElementById('cfgLockNote');
+const CFG_FIELD_IDS = ['barLength','kerf','hojasPorVentana','mallasPorVentana','traslapesPorVentana','contramarcosPorVentana'];
+
+document.querySelector('.card h2').addEventListener('click', () => {
+  const open = cfgBody.style.display !== 'none';
+  cfgBody.style.display = open ? 'none' : 'block';
+  cfgChev.textContent = open ? '▼' : '▲';
+});
+
+const winBodyWrap = document.getElementById('winBodyWrap');
+const winChev = document.getElementById('winChev');
+document.getElementById('winChev').parentElement.addEventListener('click', () => {
+  const open = winBodyWrap.style.display !== 'none';
+  winBodyWrap.style.display = open ? 'none' : 'block';
+  winChev.textContent = open ? '▼' : '▲';
+});
+
+function wireCollapse(bodyId, chevId){
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  chev.parentElement.addEventListener('click', () => {
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    chev.textContent = open ? '▼' : '▲';
+  });
+}
+wireCollapse('sheetBody', 'sheetChev');
+wireCollapse('piecesBody', 'piecesChev');
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('view-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'history') renderHistory();
+    if (tab.dataset.tab === 'configs'){ renderConfigList(); renderTipoList(); }
+    if (tab.dataset.tab === 'materiales') renderMaterialProjects();
+  });
+});
+
+function addWinRow(data){
+  data = data || {};
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><select class="f-tipo"></select></td>
+    <td><input type="number" step="0.001" class="f-ancho" value="${data.ancho ?? ''}" placeholder="2.00"></td>
+    <td><input type="number" step="0.001" class="f-alto" value="${data.alto ?? ''}" placeholder="2.10"></td>
+    <td><input type="number" step="0.001" class="f-anchoH" value="${data.anchoH ?? ''}" readonly tabindex="-1" title="Calculado automáticamente"></td>
+    <td><input type="number" step="0.001" class="f-altoH" value="${data.altoH ?? ''}" readonly tabindex="-1" title="Calculado automáticamente"></td>
+    <td><input type="number" step="0.001" class="f-anchoM" value="${data.anchoM ?? ''}" readonly tabindex="-1" title="Calculado automáticamente"></td>
+    <td><input type="number" step="0.001" class="f-altoM" value="${data.altoM ?? ''}" readonly tabindex="-1" title="Calculado automáticamente"></td>
+    <td><input type="number" step="0.001" class="f-traslape" value="${data.traslape ?? ''}" readonly tabindex="-1" title="Calculado automáticamente"></td>
+    <td><input type="number" step="1" min="1" class="f-qty qty-input" value="${data.qty ?? 1}"></td>
+    <td><button class="del-btn" title="Quitar">✕</button></td>
+  `;
+
+  populateTipoSelectOptions(tr.querySelector('.f-tipo'), data.tipoId);
+
+  const recalcRow = () => {
+    const ancho = parseFloat(tr.querySelector('.f-ancho').value) || 0;
+    const alto = parseFloat(tr.querySelector('.f-alto').value) || 0;
+    const tipo = getSelectedTipo(tr);
+
+    // Fórmulas de fabricación (según el tipo de ventana seleccionado):
+    const anchoH = ancho > 0 ? (ancho / (tipo.divAnchoH || 2)) - (tipo.restaAnchoH || 0) : 0;
+    const altoH = alto > 0 ? alto - (tipo.restaAltoH || 0) : 0;
+    const anchoM = anchoH > 0 ? anchoH - (tipo.restaAnchoM || 0) : 0;
+    const altoM = altoH > 0 ? altoH - (tipo.restaAltoM || 0) : 0;
+    const traslape = altoH > 0 ? altoH - (tipo.restaTraslape || 0) : 0;
+
+    tr.querySelector('.f-anchoH').value = ancho > 0 ? anchoH.toFixed(3) : '';
+    tr.querySelector('.f-altoH').value = alto > 0 ? altoH.toFixed(3) : '';
+    tr.querySelector('.f-anchoM').value = ancho > 0 ? anchoM.toFixed(3) : '';
+    tr.querySelector('.f-altoM').value = alto > 0 ? altoM.toFixed(3) : '';
+    tr.querySelector('.f-traslape').value = alto > 0 ? traslape.toFixed(3) : '';
+  };
+
+  tr.querySelector('.del-btn').addEventListener('click', () => {
+    tr.remove();
+    saveDraft();
+    afterCalcInvalidate();
+  });
+
+  tr.querySelector('.f-tipo').addEventListener('change', () => {
+    recalcRow();
+    saveDraft();
+    afterCalcInvalidate();
+  });
+
+  tr.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      if (inp.classList.contains('f-ancho') || inp.classList.contains('f-alto')) recalcRow();
+      saveDraft();
+      afterCalcInvalidate();
+    });
+  });
+
+  winBody.appendChild(tr);
+  applyInputModes(tr);
+  recalcRow();
+}
+
+function afterCalcInvalidate(){
+  saveCard.style.display = 'none';
+}
+
+addRowBtn.addEventListener('click', () => { addWinRow(); saveDraft(); });
+
+function readConfig(){
+  return {
+    barLength: parseFloat(document.getElementById('barLength').value) || 5.80,
+    kerf: parseFloat(document.getElementById('kerf').value) || 0,
+    hojas: parseInt(document.getElementById('hojasPorVentana').value, 10) || 0,
+    mallas: parseInt(document.getElementById('mallasPorVentana').value, 10) || 0,
+    traslapes: parseInt(document.getElementById('traslapesPorVentana').value, 10) || 0,
+    contramarcos: parseInt(document.getElementById('contramarcosPorVentana').value, 10) || 0
+  };
+}
+
+function readRows(){
+  const rows = Array.from(winBody.querySelectorAll('tr'));
+  return rows.map(row => ({
+    tipoId: row.querySelector('.f-tipo').value,
+    ancho: parseFloat(row.querySelector('.f-ancho').value) || 0,
+    alto: parseFloat(row.querySelector('.f-alto').value) || 0,
+    anchoH: parseFloat(row.querySelector('.f-anchoH').value) || 0,
+    altoH: parseFloat(row.querySelector('.f-altoH').value) || 0,
+    anchoM: parseFloat(row.querySelector('.f-anchoM').value) || 0,
+    altoM: parseFloat(row.querySelector('.f-altoM').value) || 0,
+    traslape: parseFloat(row.querySelector('.f-traslape').value) || 0,
+    qty: parseInt(row.querySelector('.f-qty').value, 10) || 0
+  })).filter(r => r.qty > 0);
+}
+
+function optimize(items, barLength, kerf){
+  items = items.slice().sort((a,b) => b.len - a.len);
+  const bars = [];
+  items.forEach(item => {
+    let placed = false;
+    for (const bar of bars){
+      const needed = item.len + (bar.items.length > 0 ? kerf : 0);
+      if (needed <= bar.remaining + 1e-9){
+        bar.items.push(item);
+        bar.remaining -= needed;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed){
+      bars.push({ remaining: barLength - item.len, items: [item] });
+    }
+  });
+  return bars;
+}
+
+function fmt(n){
+  return (Math.round(n * 1000) / 1000).toString().replace(/\.?0+$/,'') || '0';
+}
+
+function fmtFull(n){
+  return (Math.round(n * 1000) / 1000).toFixed(3);
+}
+
+// ==================== VIDRIO ====================
+
+const glassBody = document.getElementById('glassBody');
+
+function addGlassRow(data){
+  data = data || {};
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="number" step="0.001" class="f-ancho" value="${data.ancho ?? ''}" placeholder="1.20"></td>
+    <td><input type="number" step="0.001" class="f-alto" value="${data.alto ?? ''}" placeholder="0.90"></td>
+    <td><input type="number" step="1" min="1" class="f-qty" value="${data.qty ?? 1}"></td>
+    <td><button class="del-btn" title="Quitar">✕</button></td>
+  `;
+  tr.querySelector('.del-btn').addEventListener('click', () => { tr.remove(); saveGlassDraft(); });
+  tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', saveGlassDraft));
+  glassBody.appendChild(tr);
+  applyInputModes(tr);
+}
+
+document.getElementById('addGlassRowBtn').addEventListener('click', () => { addGlassRow(); saveGlassDraft(); });
+
+function readGlassRows(){
+  return Array.from(glassBody.querySelectorAll('tr')).map(row => ({
+    ancho: parseFloat(row.querySelector('.f-ancho').value) || 0,
+    alto: parseFloat(row.querySelector('.f-alto').value) || 0,
+    qty: parseInt(row.querySelector('.f-qty').value, 10) || 0
+  })).filter(r => r.ancho > 0 && r.alto > 0 && r.qty > 0);
+}
+
+function readSheetCfg(){
+  return {
+    sheetW: parseFloat(document.getElementById('sheetW').value) || 3.30,
+    sheetH: parseFloat(document.getElementById('sheetH').value) || 2.14,
+    kerf: parseFloat(document.getElementById('glassKerf').value) || 0,
+    allowRotate: document.getElementById('allowRotate').checked
+  };
+}
+
+// ---- Empaquetado guillotina general (árbol de rectángulos libres) ----
+// Cada corte sigue siendo una línea recta de lado a lado del rectángulo que está
+// cortando en ese momento — igual que en la vida real, solo que el algoritmo
+// reutiliza cada sobrante como un rectángulo libre donde puede seguir cortando.
+
+function splitVerticalFirst(rect, pw, ph){
+  const out = [];
+  if (rect.w - pw > 1e-6) out.push({ x: rect.x + pw, y: rect.y, w: rect.w - pw, h: rect.h });
+  if (rect.h - ph > 1e-6) out.push({ x: rect.x, y: rect.y + ph, w: pw, h: rect.h - ph });
+  return out;
+}
+function splitHorizontalFirst(rect, pw, ph){
+  const out = [];
+  if (rect.h - ph > 1e-6) out.push({ x: rect.x, y: rect.y + ph, w: rect.w, h: rect.h - ph });
+  if (rect.w - pw > 1e-6) out.push({ x: rect.x + pw, y: rect.y, w: rect.w - pw, h: ph });
+  return out;
+}
+
+function guillotinePackAll(instances, sheetW, sheetH, kerf, allowRotate, splitFn, scoreFn){
+  const sheets = [];
+  const leftover = [];
+
+  instances.forEach(inst => {
+    let best = null;
+    for (let s = 0; s < sheets.length; s++){
+      const free = sheets[s].free;
+      for (let r = 0; r < free.length; r++){
+        const rect = free[r];
+        if (inst.w <= rect.w + 1e-6 && inst.h <= rect.h + 1e-6){
+          const score = scoreFn(rect, inst.w, inst.h);
+          if (!best || score < best.score) best = { sheetIdx: s, rectIdx: r, w: inst.w, h: inst.h, rotated: false, score };
+        }
+        if (allowRotate && inst.h <= rect.w + 1e-6 && inst.w <= rect.h + 1e-6){
+          const score = scoreFn(rect, inst.h, inst.w);
+          if (!best || score < best.score) best = { sheetIdx: s, rectIdx: r, w: inst.h, h: inst.w, rotated: true, score };
+        }
+      }
+    }
+    if (!best){
+      const fitsNormal = inst.w <= sheetW + 1e-6 && inst.h <= sheetH + 1e-6;
+      const fitsRotated = allowRotate && inst.h <= sheetW + 1e-6 && inst.w <= sheetH + 1e-6;
+      if (!fitsNormal && !fitsRotated){ leftover.push(inst); return; }
+      sheets.push({ free: [{ x: 0, y: 0, w: sheetW, h: sheetH }], placed: [] });
+      const s = sheets.length - 1;
+      const w = fitsNormal ? inst.w : inst.h;
+      const h = fitsNormal ? inst.h : inst.w;
+      best = { sheetIdx: s, rectIdx: 0, w, h, rotated: !fitsNormal, score: 0 };
+    }
+    const sheet = sheets[best.sheetIdx];
+    const rect = sheet.free[best.rectIdx];
+    sheet.placed.push({ x: rect.x, y: rect.y, w: best.w, h: best.h, code: inst.code, rotated: best.rotated });
+    sheet.free.splice(best.rectIdx, 1);
+    splitFn(rect, best.w + kerf, best.h + kerf).forEach(nr => {
+      if (nr.w > 1e-6 && nr.h > 1e-6) sheet.free.push(nr);
+    });
+  });
+
+  return {
+    sheets: sheets.map(s => s.placed),
+    freeRects: sheets.map(s => s.free),
+    leftover
+  };
+}
+
+// Prueba varias combinaciones de orden de piezas + regla de corte + heurística
+// de selección, y se queda con la que deja menos láminas y menos sobrante.
+function bestGuillotinePacking(instances, sheetW, sheetH, kerf, allowRotate){
+  const sortOrders = [
+    (a, b) => (b.w - a.w) || (b.h - a.h),
+    (a, b) => (b.h - a.h) || (b.w - a.w),
+    (a, b) => (b.w * b.h) - (a.w * a.h)
+  ];
+  const splitFns = [splitVerticalFirst, splitHorizontalFirst];
+  const scoreFns = [
+    (rect, w, h) => (rect.w * rect.h) - (w * h),
+    (rect, w, h) => Math.min(rect.w - w, rect.h - h)
+  ];
+
+  let best = null;
+  let triedCount = 0;
+  sortOrders.forEach(sortFn => {
+    const sorted = instances.slice().sort(sortFn);
+    splitFns.forEach(splitFn => {
+      scoreFns.forEach(scoreFn => {
+        triedCount++;
+        const result = guillotinePackAll(sorted, sheetW, sheetH, kerf, allowRotate, splitFn, scoreFn);
+        let usedArea = 0;
+        result.sheets.forEach(sh => sh.forEach(p => usedArea += p.w * p.h));
+        const totalArea = result.sheets.length * sheetW * sheetH;
+        const waste = totalArea - usedArea;
+        const numSheets = result.sheets.length;
+        if (!best || numSheets < best.numSheets || (numSheets === best.numSheets && waste < best.waste)){
+          best = Object.assign({}, result, { numSheets, waste });
+        }
+      });
+    });
+  });
+  best.triedCount = triedCount;
+  return best;
+}
+
+let lastGlassResult = null;
+
+document.getElementById('calcGlassBtn').addEventListener('click', () => {
+  const cfg = readSheetCfg();
+  const rows = readGlassRows();
+  const resultsEl = document.getElementById('glassResults');
+  const downloadBtn = document.getElementById('downloadGlassPdfBtn');
+
+  if (rows.length === 0){
+    resultsEl.innerHTML = '<p class="empty-note">Agrega al menos una medida con ancho, alto y cantidad válidos.</p>';
+    downloadBtn.style.display = 'none';
+    lastGlassResult = null;
+    return;
+  }
+
+  const instances = [];
+  rows.forEach((r, idx) => {
+    const code = 'V' + (idx + 1);
+    for (let i = 0; i < r.qty; i++) instances.push({ w: r.ancho, h: r.alto, code });
+  });
+
+  const oversizedNoFit = instances.filter(p => {
+    const fitsNormal = p.w <= cfg.sheetW + 1e-6 && p.h <= cfg.sheetH + 1e-6;
+    const fitsRotated = cfg.allowRotate && p.h <= cfg.sheetW + 1e-6 && p.w <= cfg.sheetH + 1e-6;
+    return !fitsNormal && !fitsRotated;
+  });
+
+  const packable = instances.filter(p => !oversizedNoFit.includes(p));
+  const best = bestGuillotinePacking(packable, cfg.sheetW, cfg.sheetH, cfg.kerf, cfg.allowRotate);
+
+  lastGlassResult = {
+    cfg, rows,
+    sheets: best.sheets,
+    freeRects: best.freeRects,
+    leftover: best.leftover.concat(oversizedNoFit),
+    oversizedNoFit,
+    triedCount: best.triedCount
+  };
+  renderGlassResults(lastGlassResult);
+  downloadBtn.style.display = 'block';
+  saveGlassDraft();
+});
+
+function renderGlassResults(result){
+  const { cfg, sheets, freeRects, oversizedNoFit, triedCount } = result;
+  const resultsEl = document.getElementById('glassResults');
+  const sheetArea = cfg.sheetW * cfg.sheetH;
+  let usedArea = 0;
+  sheets.forEach(s => s.forEach(p => usedArea += p.w * p.h));
+  const totalArea = sheetArea * sheets.length;
+  const wasteArea = totalArea - usedArea;
+  const eff = totalArea > 0 ? (usedArea / totalArea) * 100 : 0;
+
+  let html = '';
+
+  if (oversizedNoFit.length){
+    const sizes = [...new Set(oversizedNoFit.map(p => `${fmt(p.w)} × ${fmt(p.h)} m`))];
+    html += `<div class="error-box"><b>Estas medidas no caben en la lámina (${fmt(cfg.sheetW)} × ${fmt(cfg.sheetH)} m):</b>${sizes.join(', ')}</div>`;
+  }
+
+  html += `<div class="glass-totals">
+    <div class="stat"><span class="num">${sheets.length}</span><span class="lbl">láminas necesarias</span></div>
+    <div class="stat"><span class="num">${fmt(usedArea)} m²</span><span class="lbl">área usada</span></div>
+    <div class="stat"><span class="num warn">${fmt(wasteArea)} m²</span><span class="lbl">sobrante</span></div>
+    <div class="stat"><span class="num" style="color:var(--good);">${eff.toFixed(1)}%</span><span class="lbl">aprovechamiento</span></div>
+  </div>`;
+  if (triedCount) html += `<p class="empty-note" style="text-align:left; padding:0; margin:-8px 0 14px;">Se probaron ${triedCount} combinaciones de orden y corte; se usó la que dejó menos láminas y menos sobrante.</p>`;
+
+  sheets.forEach((pieces, i) => {
+    html += buildSheetBlockHTML(pieces, freeRects[i] || [], i + 1, cfg);
+  });
+
+  resultsEl.innerHTML = html;
+}
+
+function buildSheetBlockHTML(pieces, freeRects, sheetNum, cfg){
+  const sheetArea = cfg.sheetW * cfg.sheetH;
+  let usedArea = 0;
+  pieces.forEach(p => usedArea += p.w * p.h);
+  const eff = (usedArea / sheetArea) * 100;
+
+  const maxWpx = 680, maxHpx = 480;
+  const scale = Math.min(maxWpx / cfg.sheetW, maxHpx / cfg.sheetH);
+  const wPx = cfg.sheetW * scale;
+  const hPx = cfg.sheetH * scale;
+
+  let svg = `<svg viewBox="0 0 ${wPx} ${hPx}" width="100%" height="auto" style="max-width:${wPx}px; display:block; margin:0 auto;" xmlns="http://www.w3.org/2000/svg">`;
+  svg += `<defs><pattern id="hatch${sheetNum}" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+    <rect width="7" height="7" fill="#EDEFF1"></rect>
+    <line x1="0" y1="0" x2="0" y2="7" stroke="#D3D7DC" stroke-width="3"></line>
+  </pattern></defs>`;
+  svg += `<rect x="0" y="0" width="${wPx}" height="${hPx}" fill="#fff" stroke="#1C2B36" stroke-width="2"></rect>`;
+
+  const MIN_LABEL = 0.05;
+  freeRects.forEach(fr => {
+    const x = fr.x * scale, y = fr.y * scale, w = fr.w * scale, h = fr.h * scale;
+    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#hatch${sheetNum})" stroke="#B9BEC6" stroke-width="1"></rect>`;
+    if (fr.w >= MIN_LABEL && fr.h >= MIN_LABEL && w > 34 && h > 20){
+      const cx = x + w / 2, cy = y + h / 2;
+      svg += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-weight="600" font-size="19.7" fill="#5C6B75" paint-order="stroke" stroke="#fff" stroke-width="3" stroke-linejoin="round">Sobrante</text>`;
+      svg += `<text x="${cx}" y="${cy + 9}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="700" font-size="21.8" fill="#5C6B75" paint-order="stroke" stroke="#fff" stroke-width="3" stroke-linejoin="round">${fmtFull(fr.w)}×${fmtFull(fr.h)}</text>`;
+    }
+  });
+
+  pieces.forEach((p, idx) => {
+    const x = p.x * scale, y = p.y * scale, w = p.w * scale, h = p.h * scale;
+    const color = PALETTE[idx % PALETTE.length];
+    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#fff" stroke="${color}" stroke-width="2.5"></rect>`;
+    const cx = x + w / 2, cy = y + h / 2;
+    const dimLabel = `${fmt(p.w)}×${fmt(p.h)}` + (p.rotated ? ' ⟲' : '');
+    svg += `<text x="${cx}" y="${cy - 5}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="700" font-size="24.9" fill="${color}" paint-order="stroke" stroke="#fff" stroke-width="3" stroke-linejoin="round">${p.code}</text>`;
+    svg += `<text x="${cx}" y="${cy + 10}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="600" font-size="21.8" fill="#1C2B36" paint-order="stroke" stroke="#fff" stroke-width="3" stroke-linejoin="round">${dimLabel} m</text>`;
+  });
+
+  svg += `</svg>`;
+
+  return `<div class="sheet-block">
+    <div class="sheet-head"><h3>Lámina ${sheetNum}</h3><span class="eff">${eff.toFixed(1)}% aprovechada</span></div>
+    <p class="sheet-sub">${pieces.length} piezas · ${fmt(cfg.sheetW * cfg.sheetH - usedArea)} m² de sobrante</p>
+    <div class="sheet-svg-wrap">${svg}</div>
+  </div>`;
+}
+
+document.getElementById('downloadGlassPdfBtn').addEventListener('click', async () => {
+  if (!lastGlassResult) return;
+  const btn = document.getElementById('downloadGlassPdfBtn');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generando PDF...';
+  try{
+    const { sheets, freeRects, cfg } = lastGlassResult;
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidthMm = pdf.internal.pageSize.getWidth();
+    const pageHeightMm = pdf.internal.pageSize.getHeight();
+
+    const PER_PAGE = 4; // 2x2 por hoja para ahorrar papel
+
+    let firstPage = true;
+    for (let start = 0; start < sheets.length; start += PER_PAGE){
+      let groupHtml = '';
+      for (let i = start; i < Math.min(start + PER_PAGE, sheets.length); i++){
+        groupHtml += buildSheetBlockHTML(sheets[i], freeRects[i] || [], i + 1, cfg);
+      }
+      printArea.innerHTML = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">${groupHtml}</div>`;
+
+      const canvas = await html2canvas(printArea, { scale: 2, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+
+      let imgWmm = pageWidthMm;
+      let imgHmm = (canvas.height * imgWmm) / canvas.width;
+      if (imgHmm > pageHeightMm){
+        const ratio = pageHeightMm / imgHmm;
+        imgHmm = pageHeightMm;
+        imgWmm = imgWmm * ratio;
+      }
+
+      if (!firstPage) pdf.addPage();
+      pdf.addImage(imgData, 'PNG', (pageWidthMm - imgWmm) / 2, 0, imgWmm, imgHmm);
+      firstPage = false;
+    }
+    pdf.save('cortes-vidrio.pdf');
+  } catch(e){
+    alert('No se pudo generar el PDF. Intenta de nuevo.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+});
+
+async function saveGlassDraft(){
+  try{
+    const draft = { cfg: readSheetCfg(), rows: readGlassRows() };
+    await localDB.set('vidrio-borrador', JSON.stringify(draft));
+  } catch(e){}
+}
+
+async function loadGlassDraft(){
+  try{
+    const res = await localDB.get('vidrio-borrador');
+    if (res && res.value){
+      const draft = JSON.parse(res.value);
+      if (draft.cfg){
+        document.getElementById('sheetW').value = draft.cfg.sheetW ?? 3.30;
+        document.getElementById('sheetH').value = draft.cfg.sheetH ?? 2.14;
+        document.getElementById('glassKerf').value = draft.cfg.kerf ?? 0;
+        document.getElementById('allowRotate').checked = !!draft.cfg.allowRotate;
+      }
+      if (draft.rows && draft.rows.length){
+        draft.rows.forEach(r => addGlassRow(r));
+        wireGlassAutosave();
+        return;
+      }
+    }
+  } catch(e){}
+  addGlassRow({ ancho: 1.20, alto: 0.90, qty: 2 });
+  wireGlassAutosave();
+}
+
+function wireGlassAutosave(){
+  ['sheetW','sheetH','glassKerf'].forEach(id => document.getElementById(id).addEventListener('input', saveGlassDraft));
+  document.getElementById('allowRotate').addEventListener('change', saveGlassDraft);
+}
+
+// ==================== FIN VIDRIO ====================
+
+function buildGroups(rows, cfg){
+  const groups = {
+    'Contramarco': [],
+    'Hoja': [],
+    'Hojas de Puerta': [],
+    'Malla': [],
+    'Traslape': []
+  };
+  let contadorPuertas = 0; // Secuencia independiente para los perfiles Hoja de Puerta 86
+  rows.forEach((r, rowIdx) => {
+    const n = rowIdx + 1; // Identificador original de ventanas normales
+    const tipo = tiposVentana.find(t => String(t.id) === String(r.tipoId));
+    const esPuerta86 = !!tipo && /puerta\s*86/i.test(tipo.name);
+    if (esPuerta86) contadorPuertas++;
+    // Los identificadores XP/P pertenecen a la puerta completa y se usan en TODOS sus cortes.
+    const xCode = esPuerta86 ? 'XP' + contadorPuertas : 'XV' + n;
+    const lCode = esPuerta86 ? 'P' + contadorPuertas : 'L' + n;
+    const grupoHoja = esPuerta86 ? 'Hojas de Puerta' : 'Hoja';
+    // Cantidades específicas para configuraciones de 4 Hojas o 4 Secciones.
+    const esCuatroHojas = !!tipo && /(?:^|\b)4\s*(?:hojas|secciones)(?:\b|$)/i.test(tipo.name);
+    const cantidadContramarcos = esCuatroHojas ? 2 : cfg.contramarcos;
+    const cantidadHojasCorte = esCuatroHojas ? 8 : cfg.hojas;
+    const cantidadMallas = esCuatroHojas ? 4 : cfg.mallas;
+    const cantidadTraslapes = esCuatroHojas ? 4 : cfg.traslapes;
+    for (let i=0;i<r.qty;i++){
+      if (r.ancho>0) for(let c=0;c<cantidadContramarcos;c++) groups['Contramarco'].push({len:r.ancho, label:'Ancho C', color:0, code:xCode});
+      if (r.alto>0) for(let c=0;c<cantidadContramarcos;c++) groups['Contramarco'].push({len:r.alto, label:'Alto C', color:1, code:lCode});
+      if (r.anchoH>0) for(let h=0;h<cantidadHojasCorte;h++) groups[grupoHoja].push({len:r.anchoH, label:'Ancho H', color:0, code:xCode});
+      if (r.altoH>0) for(let h=0;h<cantidadHojasCorte;h++) groups[grupoHoja].push({len:r.altoH, label:'Alto H', color:1, code:lCode});
+      if (r.anchoM>0) for(let m=0;m<cantidadMallas;m++) groups['Malla'].push({len:r.anchoM, label:'Ancho M', color:0, code:xCode});
+      if (r.altoM>0) for(let m=0;m<cantidadMallas;m++) groups['Malla'].push({len:r.altoM, label:'Alto M', color:1, code:lCode});
+      if (r.traslape>0) for(let t=0;t<cantidadTraslapes;t++) groups['Traslape'].push({len:r.traslape, label:'Traslape', color:0, code:lCode});
+    }
+  });
+  return groups;
+}
+
+function computeAll(rows, cfg){
+  const groups = buildGroups(rows, cfg);
+  const out = {};
+  let totalBars = 0;
+  Object.keys(groups).forEach(gname => {
+    const items = groups[gname];
+    if (items.length === 0){ out[gname] = null; return; }
+    const bars = optimize(items, cfg.barLength, cfg.kerf);
+    const totalPieceLen = items.reduce((s,i)=>s+i.len,0);
+    const totalMaterial = bars.length * cfg.barLength;
+    const waste = totalMaterial - totalPieceLen;
+    out[gname] = { bars, totalPieceLen, totalMaterial, waste, count: items.length };
+    totalBars += bars.length;
+  });
+  return { groups: out, totalBars };
+}
+
+// ==================== LISTA DE MATERIALES ====================
+
+const MAT_BASE_LABELS = {
+  ventanas: 'Total de ventanas',
+  hojas: 'Total de hojas',
+  mallas: 'Total de mallas',
+  contramarcos: 'Total de contramarcos',
+  traslapes: 'Total de traslapes',
+  lancesContramarco: 'Lances — Contramarco',
+  lancesHojaBatiente: 'Lances — Hoja',
+  lancesMalla: 'Lances — Malla',
+  lancesTraslape: 'Lances — Traslape',
+  lancesRiel: 'Lances de Riel (suma de anchos ÷ largo de lance)',
+  anchoSum: 'Suma de anchos (m)',
+  anchoSumRiel: 'Suma de anchos para Riel',
+  altoSum: 'Suma de altos (m)',
+  fijo: 'Cantidad fija'
+};
+
+const GROUP_NAME_BY_BASE = {
+  lancesContramarco: 'Contramarco',
+  lancesHojaBatiente: 'Hoja',
+  lancesMalla: 'Malla',
+  lancesTraslape: 'Traslape'
+};
+
+function computeMaterialBases(rows, cfg, groups){
+  groups = groups || {};
+  const totalVentanas = rows.reduce((s,r)=>s+r.qty,0);
+  const anchoSum = rows.reduce((s,r)=>s+r.ancho*r.qty,0);
+  const anchoSumRiel = rows.reduce((s,r)=>{
+    const tipo = tiposVentana.find(t => String(t.id) === String(r.tipoId)) || DEFAULT_TIPO;
+    return tipo.sinRiel ? s : s + r.ancho * r.qty;
+  },0);
+  const altoSum = rows.reduce((s,r)=>s+r.alto*r.qty,0);
+  const lancesOf = (gname) => (groups[gname] ? groups[gname].bars.length : 0);
+  const lancesRiel = anchoSumRiel > 0 ? Math.ceil(anchoSumRiel / (cfg.barLength || 1) - 1e-9) : 0;
+  return {
+    ventanas: totalVentanas,
+    hojas: totalVentanas * (cfg.hojas || 0),
+    mallas: totalVentanas * (cfg.mallas || 0),
+    contramarcos: totalVentanas * (cfg.contramarcos || 0),
+    traslapes: rows.reduce((s,r)=>{
+      const tipo = tiposVentana.find(t => String(t.id) === String(r.tipoId));
+      const cuatro = !!tipo && /(?:^|\b)4\s*(?:hojas|secciones)(?:\b|$)/i.test(tipo.name);
+      return s + r.qty * (cuatro ? 4 : (cfg.traslapes || 0));
+    },0),
+    lancesContramarco: lancesOf(GROUP_NAME_BY_BASE.lancesContramarco),
+    lancesHojaBatiente: lancesOf(GROUP_NAME_BY_BASE.lancesHojaBatiente),
+    lancesMalla: lancesOf(GROUP_NAME_BY_BASE.lancesMalla),
+    lancesTraslape: lancesOf(GROUP_NAME_BY_BASE.lancesTraslape),
+    lancesRiel: lancesRiel,
+    anchoSum: anchoSum,
+    anchoSumRiel: anchoSumRiel,
+    altoSum: altoSum,
+    fijo: 1
+  };
+}
+
+const MAT_LENGTH_BASES = ['anchoSum','anchoSumRiel','altoSum'];
+
+function computeMaterialsList(materialItems, rows, cfg, groups){
+  const bases = computeMaterialBases(rows, cfg, groups);
+  return materialItems.map(m => {
+    const base = bases[m.baseType] ?? 0;
+    const isLength = MAT_LENGTH_BASES.includes(m.baseType);
+    const raw = base * m.multiplier;
+    const qty = m.baseType === 'fijo' ? Math.round(m.multiplier) : (isLength ? Math.round(raw) : Math.ceil(raw - 1e-9));
+    return { name: m.name, baseType: m.baseType, multiplier: m.multiplier, base, qty, isLength };
+  });
+}
+
+function fmtMatQty(m){
+  return m.isLength ? (fmt(m.qty) + ' m') : String(m.qty);
+}
+
+function buildMaterialsTableHTML(materialsResult){
+  if (!materialsResult || materialsResult.length === 0) return '';
+  let html = `<div class="group-title">Lista de materiales</div>
+    <div class="card"><table class="mat-tbl"><thead><tr><th>Material</th><th style="text-align:right;">Cantidad</th></tr></thead><tbody>`;
+  materialsResult.forEach(m => {
+    html += `<tr><td>${escapeMatText(m.name)}</td><td class="mat-qty">${m.manual ? escapeMatText(m.qty) : fmtMatQty(m)}</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+async function getSavedMaterials(){
+  try{
+    const res = await localDB.get('materiales-lista').catch(() => null);
+    return res && res.value ? JSON.parse(res.value) : null;
+  } catch(e){ return null; }
+}
+
+async function setSavedMaterials(list){
+  try{ await localDB.set('materiales-lista', JSON.stringify(list)); } catch(e){}
+}
+
+const DEFAULT_MATERIALS = [
+  { id: 'm0a', name: 'Contramarco', baseType: 'lancesContramarco', multiplier: 1 },
+  { id: 'm0b', name: 'Hoja corrediza 60', baseType: 'lancesHojaBatiente', multiplier: 1 },
+  { id: 'm0c', name: 'Batiente 80', baseType: 'lancesHojaBatiente', multiplier: 1 },
+  { id: 'm0d', name: 'Marco Mosquitero', baseType: 'lancesMalla', multiplier: 1 },
+  { id: 'm0e', name: 'Riel', baseType: 'lancesRiel', multiplier: 1 },
+  { id: 'm1', name: 'Cierres de giro', baseType: 'ventanas', multiplier: 1 },
+  { id: 'm2', name: 'Rodos dobles con canal', baseType: 'ventanas', multiplier: 4 },
+  { id: 'm3', name: 'Rodos para malla', baseType: 'ventanas', multiplier: 2 },
+  { id: 'm4', name: 'Tapa drenaje', baseType: 'ventanas', multiplier: 2 }
+];
+
+let materialItems = [];
+
+async function refreshMaterialsCache(){
+  const saved = await getSavedMaterials();
+  materialItems = saved !== null ? saved : DEFAULT_MATERIALS;
+}
+
+// Tabla manual independiente de los cálculos de cortes.
+const MANUAL_MAT_KEY = 'materiales-manuales-v1';
+let manualMaterials = [];
+let manualMaterialsReady = false;
+let manualSaveQueue = Promise.resolve();
+
+function escapeMatText(value){
+  return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+async function loadManualMaterials(){
+  if (manualMaterialsReady) return;
+  try {
+    const record = await localDB.get(MANUAL_MAT_KEY);
+    const parsed = record && record.value ? JSON.parse(record.value) : [];
+    manualMaterials = Array.isArray(parsed) ? parsed.filter(x => x && typeof x === 'object').map(x => ({id:String(x.id || crypto.randomUUID()),name:String(x.name || ''),qty:String(x.qty || '')})) : [];
+  } catch(e){ manualMaterials = []; }
+  manualMaterialsReady = true;
+}
+function persistManualMaterials(){
+  const snapshot = JSON.stringify(manualMaterials);
+  manualSaveQueue = manualSaveQueue.catch(()=>{}).then(()=>localDB.set(MANUAL_MAT_KEY, snapshot));
+  manualSaveQueue.catch(()=>{console.warn('No se pudieron guardar los materiales en este navegador.');});
+  if (lastResult) lastResult.materialsResult = getManualMaterialsForPrint();
+}
+function getManualMaterialsForPrint(){
+  return manualMaterials.filter(m => m.name.trim() || m.qty.trim()).map(m => ({name:m.name.trim(),qty:m.qty.trim(),manual:true}));
+}
+// Cada proyecto conserva sus propios materiales dentro del historial.
+function getLanceSummary(job){
+  // Fotografía de los lances calculados al guardar; nunca depende de la tabla manual.
+  const groups = Array.isArray(job.lanceSummary) ? job.lanceSummary : (Array.isArray(job.groupSummary) ? job.groupSummary : []);
+  const order = ['Contramarco','Hoja','Hojas de Puerta','Malla','Traslape'];
+  return groups.filter(g=>g && Number(g.bars)>0).sort((a,b)=>order.indexOf(a.name)-order.indexOf(b.name))
+    .map(g=>({qty:String(g.bars),name:String(g.name)}));
+}
+async function renderMaterialProjects(){
+  const container = document.getElementById('materialProjects');
+  if (!container) return;
+  const saved = await localDB.get('trabajos-historial').catch(() => null);
+  let jobs = [];
+  try { jobs = saved && saved.value ? JSON.parse(saved.value) : []; } catch(e){}
+  container.innerHTML = '';
+  if (!jobs.length){
+    container.innerHTML = '<p class="empty-note">Todavía no hay proyectos. Calcula los cortes y pulsa «Guardar» para crear uno aquí.</p>';
+    return;
+  }
+  jobs.forEach(job => {
+    if (!Array.isArray(job.materialsEditable)) {
+      job.materialsEditable = (job.materialsResult || []).map(m => ({name:String(m.name || ''),qty:String(m.qty || '')}));
+    }
+    const card = document.createElement('section');
+    card.className = 'card';
+    card.style.margin = '12px 0';
+    card.innerHTML = `<details class="material-project-details"><summary style="cursor:pointer;font-weight:700;padding:8px 4px;list-style-position:inside">${escapeMatText(job.name)}</summary><div class="material-project-content"><p style="font-size:.75rem;color:var(--ink-soft)">${escapeMatText(job.date || '')}</p>
+      <div class="project-tables-row">
+        <section class="project-table-panel" aria-label="Tabla de visualización">
+          <h4>Tabla de visualización · Lances calculados</h4>
+          <div class="project-sheet-wrap"><table class="project-sheet"><thead><tr><th>Cantidad</th><th>Material</th></tr></thead><tbody class="project-view-body"></tbody></table></div>
+        </section>
+        <section class="project-table-panel" aria-label="Tabla editable">
+          <h4>Tabla editable · Minuta</h4>
+          <div class="project-sheet-wrap"><table class="project-sheet project-edit-sheet"><colgroup><col style="width:21px"><col><col style="width:32px"></colgroup><thead><tr><th colspan="2" class="minuta-heading"><input class="minuta-title" aria-label="Título y descripción de la minuta" placeholder="Escribe el título o descripción de la minuta" value="${escapeMatText(job.minutaTitle || '')}"></th><th class="project-action-col"></th></tr></thead><tbody class="project-edit-body"></tbody></table></div>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px"><button class="calc-btn project-add-row" type="button">+ Agregar fila</button><button class="calc-btn project-minuta-pdf" type="button">⬇ PDF de minuta</button><span class="project-status" style="font-size:.75rem;color:var(--ink-soft)"></span></div>
+        </section>
+      </div></div></details>`;
+    const viewBody = card.querySelector('.project-view-body');
+    const editBody = card.querySelector('.project-edit-body');
+    const status = card.querySelector('.project-status');
+    let timer;
+    const save = () => {
+      clearTimeout(timer);
+      status.textContent = 'Guardando…';
+      timer = setTimeout(async () => {
+        try {
+          const current = await localDB.get('trabajos-historial');
+          const all = current && current.value ? JSON.parse(current.value) : [];
+          const target = all.find(j => j.id === job.id);
+          if (!target) {status.textContent = 'Proyecto no encontrado';return;}
+          target.materialsEditable = job.materialsEditable.map(m => ({name:m.name,qty:m.qty}));
+          target.minutaTitle = job.minutaTitle || '';
+          // La lista de lances NO se modifica al editar materiales.
+          await localDB.set('trabajos-historial',JSON.stringify(all));
+          status.textContent = 'Guardado ✓';
+        } catch(e){status.textContent='Error al guardar';}
+      },250);
+    };
+    card.querySelector('.minuta-title').addEventListener('input',e=>{job.minutaTitle=e.target.value;save();});
+    card.querySelector('.project-minuta-pdf').addEventListener('click', async e=>{
+      const btn=e.currentTarget;btn.disabled=true;const previous=btn.textContent;btn.textContent='Generando PDF…';
+      try { await exportMinutaPdf(job); } catch(err){console.error(err);alert('No se pudo generar el PDF de la minuta.');}
+      finally {btn.disabled=false;btn.textContent=previous;}
+    });
+    const lanceRows = getLanceSummary(job);
+    viewBody.innerHTML = lanceRows.map(m=>`<tr><td>${escapeMatText(m.qty)}</td><td>${escapeMatText(m.name)}</td></tr>`).join('') || '<tr><td colspan="2">Sin lances calculados</td></tr>';
+    const renderEdit = () => {
+      editBody.innerHTML = '';
+      job.materialsEditable.forEach((item,index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><input aria-label="Cantidad (máximo 5 dígitos)" inputmode="numeric" maxlength="5" placeholder="0" value="${escapeMatText(item.qty)}"></td><td><input aria-label="Material" placeholder="Nombre del material" value="${escapeMatText(item.name)}"></td><td><button type="button" class="manual-mat-delete" title="Eliminar fila">×</button></td>`;
+        const inputs = tr.querySelectorAll('input');
+        inputs[0].addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,5);item.qty=e.target.value;save();});
+        inputs[1].addEventListener('input',e=>{item.name=e.target.value;save();});
+        tr.querySelector('button').addEventListener('click',()=>{job.materialsEditable.splice(index,1);renderEdit();save();});
+        editBody.appendChild(tr);
+      });
+    };
+    card.querySelector('.project-add-row').addEventListener('click',()=>{
+      job.materialsEditable.push({name:'',qty:''});renderEdit();save();
+      const inputs=editBody.querySelectorAll('input');if(inputs.length)inputs[inputs.length-2].focus();
+    });
+    renderEdit();container.appendChild(card);
+  });
+}
+
+// PDF independiente de la tabla editable, con márgenes de 10 mm y filas completas.
+async function exportMinutaPdf(job){
+  if(!window.jspdf?.jsPDF) throw new Error('La biblioteca PDF no está disponible');
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF('p','mm','a4');
+  const margin=10, pageW=pdf.internal.pageSize.getWidth(),pageH=pdf.internal.pageSize.getHeight();
+  const usableW=pageW-2*margin, bottom=pageH-margin;
+  const rows=Array.isArray(job.materialsEditable)?job.materialsEditable:[];
+  const title=(job.minutaTitle||'Minuta de materiales').trim();
+  let y=margin;
+  const line=(str,x,yy,maxWidth)=>pdf.text(String(str),x,yy,{maxWidth});
+  function pageHeader(){
+    pdf.setFont('helvetica','bold');pdf.setFontSize(12);
+    const heading=pdf.splitTextToSize(title,usableW-4);
+    for(const t of heading){if(y+6>bottom){pdf.addPage();y=margin;}line(t,margin+2,y+4,usableW-4);y+=6;}
+    pdf.setFont('helvetica','normal');pdf.setFontSize(8);
+    line('Proyecto: '+(job.name||'Sin nombre'),margin+2,y+3,usableW-4);y+=7;
+    pdf.setDrawColor(160);pdf.line(margin,y, pageW-margin,y);y+=3;
+  }
+  pageHeader();
+  if(!rows.length){pdf.setFontSize(9);line('Sin materiales registrados.',margin+2,y+5,usableW-4);}
+  for(const item of rows){
+    const qty=String(item.qty??'');const material=String(item.name??'');
+    pdf.setFont('helvetica','normal');pdf.setFontSize(10);
+    const lines=pdf.splitTextToSize(material,usableW-22);
+    const height=Math.max(8,lines.length*5+3);
+    if(y+height>bottom){pdf.addPage();y=margin;pageHeader();}
+    pdf.setDrawColor(190);pdf.rect(margin,y,18,height);pdf.rect(margin+18,y,usableW-18,height);
+    line(qty,margin+2,y+5,14);
+    lines.forEach((t,i)=>line(t,margin+21,y+5+i*5,usableW-24));
+    y+=height;
+  }
+  const slug=String(job.name||'proyecto').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,'')||'proyecto';
+  pdf.save('minuta-'+slug+'.pdf');
+}
+
+// ==================== FIN LISTA DE MATERIALES ====================
+
+function renderResults(result){
+  const groups = result.groups;
+  const anyGroup = Object.values(groups).some(g => g !== null);
+  if (!anyGroup){
+    resultsEl.innerHTML = '<p class="empty-note">Agrega al menos una ventana con medidas y cantidad válidas.</p>';
+    saveCard.style.display = 'none';
+    downloadPdfBtn.style.display = 'none';
+    document.getElementById('cutSheets').style.display = 'none';
+    return;
+  }
+
+  document.getElementById("cutSheets").style.display = "block";
+  renderCutSheetTabs();
+  refreshCombinedPdfCard();
+  let html = `<div class="group-summary">
+    <div class="stat"><span class="num">${result.totalBars}</span><span class="lbl">lances totales</span></div>
+  </div>`;
+
+  Object.keys(groups).forEach(gname => {
+    if (gname !== activeCutSheet) return;
+    const g = groups[gname];
+    if (!g) return;
+    const eff = (g.totalPieceLen / g.totalMaterial) * 100;
+    html += `<div class="group-title">${gname}</div>`;
+    html += `<div class="group-summary">
+      <div class="stat"><span class="num">${g.bars.length}</span><span class="lbl">lances</span></div>
+      <div class="stat waste"><span class="num">${fmt(g.waste)} m</span><span class="lbl">sobrante</span></div>
+      <div class="stat eff"><span class="num">${eff.toFixed(1)}%</span><span class="lbl">aprovechamiento</span></div>
+    </div>`;
+    g.bars.forEach((bar, i) => {
+      html += `<div class="bar-block">
+        <div class="bar-title"><span>Lance ${i+1} — ${bar.items.length} pz</span><span class="waste-tag">sobra ${fmt(bar.remaining)} m</span></div>
+        <div class="bar-visual">`;
+      bar.items.forEach(item => {
+        const pct = (item.len / result.barLength) * 100;
+        const color = BAR_PALETTE[item.color % BAR_PALETTE.length];
+        html += `<div class="segment" style="width:${pct}%; background:${color};" title="${item.code} · ${item.label} · ${fmt(item.len)} m"><span class="seg-label"><span class="seg-code">${item.code}</span><span class="seg-len">${fmtFull(item.len)}</span></span></div>`;
+      });
+      if (bar.remaining > 0.001){
+        const pct = (bar.remaining / result.barLength) * 100;
+        html += `<div class="segment leftover" style="width:${pct}%;" title="Sobrante · ${fmt(bar.remaining)} m"><span class="seg-label">${fmtFull(bar.remaining)}</span></div>`;
+      }
+      html += `</div></div>`;
+    });
+  });
+
+
+
+  resultsEl.innerHTML = html;
+  saveCard.style.display = 'block';
+  downloadPdfBtn.style.display = 'none';
+}
+
+let lastResult = null;
+let lastCfg = null;
+let lastRows = null;
+
+calcBtn.addEventListener('click', async () => {
+  const cfg = readConfig();
+  const rows = readRows();
+  const result = computeAll(rows, cfg);
+  result.barLength = cfg.barLength;
+  await refreshMaterialsCache();
+  await loadManualMaterials();
+  result.materialsResult = getManualMaterialsForPrint();
+  lastResult = result;
+  lastCfg = cfg;
+  lastRows = rows;
+  renderResults(result);
+  saveDraft();
+});
+
+saveBtn.addEventListener('click', async () => {
+  if (!lastResult) return;
+  await loadManualMaterials();
+  const name = jobNameInput.value.trim() || 'Trabajo sin nombre';
+  const job = {
+    id: Date.now(),
+    name,
+    date: new Date().toLocaleDateString('es-HN', { day:'2-digit', month:'2-digit', year:'numeric' }),
+    cfg: lastCfg,
+    rows: lastRows,
+    totalBars: lastResult.totalBars,
+    groupSummary: Object.keys(lastResult.groups)
+      .filter(g => lastResult.groups[g])
+      .map(g => ({ name: g, bars: lastResult.groups[g].bars.length })),
+    materialsResult: getManualMaterialsForPrint(),
+    materialsEditable: getManualMaterialsForPrint().map(m => ({name:m.name,qty:m.qty})),
+    minutaTitle: '',
+    lanceSummary: Object.keys(lastResult.groups).filter(g=>lastResult.groups[g]).map(g=>({name:g,bars:lastResult.groups[g].bars.length}))
+  };
+  try{
+    const listRes = await localDB.get('trabajos-historial').catch(() => null);
+    const list = listRes && listRes.value ? JSON.parse(listRes.value) : [];
+    list.unshift(job);
+    await localDB.set('trabajos-historial', JSON.stringify(list));
+    jobNameInput.value = '';
+    saveBtn.textContent = 'Guardado ✓';
+    setTimeout(() => saveBtn.textContent = 'Guardar', 1500);
+  } catch(e){
+    saveBtn.textContent = 'Error al guardar';
+    setTimeout(() => saveBtn.textContent = 'Guardar', 1500);
+  }
+});
+
+const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+const printArea = document.getElementById('printArea');
+
+function buildPrintHTML(onlyGroup = null){
+  const selectedGroups = Array.isArray(onlyGroup) ? onlyGroup : (onlyGroup ? [onlyGroup] : null);
+  if (!lastResult) return '';
+  const cfg = lastCfg;
+  const name = jobNameInput.value.trim() || 'Trabajo sin nombre';
+  const dateStr = new Date().toLocaleDateString('es-HN', { day:'2-digit', month:'2-digit', year:'numeric' });
+
+  // PDF compacto: solo identificación breve, resumen y diagramas de corte.
+  let html = `
+    <div class="print-header print-compact-header">
+      <h1>${selectedGroups && selectedGroups.length === 1 ? selectedGroups[0] : 'Cortes de ventanas'}</h1>
+      <div class="print-meta"><span><b>Trabajo:</b> ${name}</span><span><b>Fecha:</b> ${dateStr}</span><span><b>Lance:</b> ${fmt(cfg.barLength)} m</span></div>
+    </div>
+  `;
+
+  Object.keys(lastResult.groups).forEach(gname => {
+    if (selectedGroups && !selectedGroups.includes(gname)) return;
+    const g = lastResult.groups[gname];
+    if (!g) return;
+    const eff = (g.totalPieceLen / g.totalMaterial) * 100;
+    html += `<div class="group-title">${gname}</div>
+      <div class="print-group-stats">${g.bars.length} lances · sobrante ${fmt(g.waste)} m · aprovechamiento ${eff.toFixed(1)}%</div>`;
+    g.bars.forEach((bar, i) => {
+      html += `<div class="bar-block">
+        <div class="bar-title"><span>Lance ${i+1} — ${bar.items.length} pz</span><span class="waste-tag">sobra ${fmt(bar.remaining)} m</span></div>
+        <div class="bar-visual">`;
+      bar.items.forEach(item => {
+        const pct = (item.len / lastResult.barLength) * 100;
+        const color = BAR_PALETTE[item.color % BAR_PALETTE.length];
+        html += `<div class="segment" style="width:${pct}%; background:${color};"><span class="seg-label"><span class="seg-code">${item.code}</span><span class="seg-len">${fmtFull(item.len)}</span></span></div>`;
+      });
+      if (bar.remaining > 0.001){
+        const pct = (bar.remaining / lastResult.barLength) * 100;
+        html += `<div class="segment leftover" style="width:${pct}%;"><span class="seg-label">${fmtFull(bar.remaining)}</span></div>`;
+      }
+      html += `</div></div>`;
+    });
+  });
+
+  if (!selectedGroups && lastResult.materialsResult && lastResult.materialsResult.length){
+    html += `<div class="group-title">Lista de materiales</div>
+      <table class="print-win-table"><thead><tr><th>Material</th><th>Cantidad</th></tr></thead><tbody>`;
+    lastResult.materialsResult.forEach(m => {
+      html += `<tr><td>${escapeMatText(m.name)}</td><td>${m.manual ? escapeMatText(m.qty) : fmtMatQty(m)}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+  }
+
+  return html;
+}
+
+// Paginar por lances completos, nunca por una imagen larga recortada.
+async function exportCutPdf(groupName = null){
+  await loadManualMaterials();
+  if(lastResult) lastResult.materialsResult = getManualMaterialsForPrint();
+  printArea.innerHTML = buildPrintHTML(groupName);
+  printArea.style.padding = '0';
+  const {jsPDF} = window.jspdf;
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const margin = 10;
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const usableW = pageW - margin * 2;
+  const usableH = pageH - margin * 2;
+  const contentWpx = 760;
+  const maxHpx = usableH * contentWpx / usableW;
+  // Un contenedor por página, con las mismas dimensiones y estilos del original.
+  const pages = [];
+  let page, pageHeight = 0;
+  const newPage = () => {
+    page = document.createElement('div');
+    page.className = 'pdf-cut-page';
+    page.style.cssText = 'width:760px;background:#fff;box-sizing:border-box;padding:0;display:flow-root;';
+    pages.push(page);
+    pageHeight = 0;
+  };
+  newPage();
+  const sourceNodes = Array.from(printArea.children);
+  // Calcular alturas reales en el navegador, incluyendo márgenes.
+  const measure = node => {
+    const cs = getComputedStyle(node);
+    return node.getBoundingClientRect().height + parseFloat(cs.marginTop || 0) + parseFloat(cs.marginBottom || 0);
+  };
+  // Mantener títulos y estadísticas junto al primer lance del grupo.
+  for (let i=0; i<sourceNodes.length; i++){
+    const node = sourceNodes[i];
+    const isGroupTitle = node.classList.contains('group-title');
+    let needed = measure(node);
+    if (isGroupTitle){
+      if(sourceNodes[i+1]?.classList.contains('print-group-stats')) needed += measure(sourceNodes[i+1]);
+      if(sourceNodes[i+2]?.classList.contains('bar-block')) needed += measure(sourceNodes[i+2]);
+    }
+    if(pageHeight > 0 && pageHeight + needed > maxHpx - 12){newPage();}
+    page.appendChild(node.cloneNode(true));
+    pageHeight += measure(node);
+  }
+  // Generar cada página de forma independiente para evitar cortes horizontales.
+  printArea.innerHTML = '';
+  for(let i=0;i<pages.length;i++){
+    printArea.appendChild(pages[i]);
+    const canvas = await html2canvas(pages[i], {scale:2, backgroundColor:'#ffffff'});
+    if(i>0) pdf.addPage();
+    const imageH = canvas.height * usableW / canvas.width;
+    pdf.addImage(canvas.toDataURL('image/png'),'PNG',margin,margin,usableW,imageH);
+    pages[i].remove();
+  }
+  const jobSlug = (jobNameInput.value.trim() || 'trabajo').replace(/[^a-z0-9áéíóúñ_-]+/gi,'-');
+  const groupSlug = Array.isArray(groupName) ? '-combinado' : (groupName ? '-' + groupName.toLowerCase().replace(/[^a-z]+/g,'-').replace(/^-|-$/g,'') : '');
+  pdf.save('cortes' + groupSlug + '-' + jobSlug + '.pdf');
+  printArea.innerHTML = '';
+}
+
+downloadPdfBtn.addEventListener('click', async () => {
+  if(!lastResult) return;
+  downloadPdfBtn.disabled = true;
+  const label = downloadPdfBtn.textContent;
+  downloadPdfBtn.textContent = 'Generando PDF...';
+  try {await exportCutPdf();}
+  catch(e){console.error(e); alert('No se pudo generar el PDF.');}
+  finally{downloadPdfBtn.disabled=false;downloadPdfBtn.textContent=label;}
+});
+
+
+// Hojas independientes de corte: se reutilizan las fórmulas y el optimizador originales.
+const CUT_SHEET_NAMES = ['Contramarco', 'Hoja', 'Hojas de Puerta', 'Malla', 'Traslape'];
+let activeCutSheet = CUT_SHEET_NAMES[0];
+function renderCutSheetTabs(){
+  const tabs = document.getElementById('cutSheetTabs');
+  tabs.innerHTML = '';
+  CUT_SHEET_NAMES.forEach(name => {
+    if (name === 'Hojas de Puerta' && !(lastResult && lastResult.groups[name])) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tab' + (name === activeCutSheet ? ' active' : '');
+    btn.textContent = name;
+    btn.style.cssText = 'background:none;border-top:0;border-left:0;border-right:0;font-family:inherit;';
+    btn.addEventListener('click', () => {
+      activeCutSheet = name;
+      if (lastResult) renderResults(lastResult);
+    });
+    tabs.appendChild(btn);
+  });
+  if (activeCutSheet === 'Hojas de Puerta' && !(lastResult && lastResult.groups[activeCutSheet])) activeCutSheet = 'Hoja';
+  document.getElementById('cutSheetHeading').textContent = activeCutSheet;
+  const available = !!(lastResult && lastResult.groups[activeCutSheet]);
+  document.getElementById('downloadSheetPdfBtn').disabled = !available;
+}
+document.getElementById('downloadSheetPdfBtn').addEventListener('click', async () => {
+  if (!lastResult || !lastResult.groups[activeCutSheet]) return;
+  const btn = document.getElementById('downloadSheetPdfBtn');
+  btn.disabled = true;
+  btn.textContent = 'Generando PDF...';
+  try { await exportCutPdf(activeCutSheet); }
+  catch(e){console.error(e); alert('No se pudo generar el PDF de esta hoja.');}
+  finally {btn.disabled = false; btn.textContent = '⬇ Descargar PDF de esta hoja';}
+});
+
+// Selección libre de hojas para un único PDF, sin alterar las exportaciones individuales.
+const combinedPdfCard = document.getElementById('combinedPdfCard');
+const combinedPdfChoices = document.getElementById('combinedPdfChoices');
+const downloadCombinedPdfBtn = document.getElementById('downloadCombinedPdfBtn');
+const combinedPdfError = document.getElementById('combinedPdfError');
+CUT_SHEET_NAMES.forEach(name => {
+  const label = document.createElement('label');
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.value = name;
+  input.checked = true;
+  input.addEventListener('change', () => { combinedPdfError.style.display = 'none'; });
+  label.appendChild(input);
+  label.appendChild(document.createTextNode(name));
+  combinedPdfChoices.appendChild(label);
+});
+function refreshCombinedPdfCard(){
+  combinedPdfCard.style.display = lastResult && CUT_SHEET_NAMES.some(n => lastResult.groups[n]) ? 'block' : 'none';
+  combinedPdfChoices.querySelectorAll('input').forEach(input => {
+    input.parentElement.style.display = input.value === 'Hojas de Puerta' && !(lastResult && lastResult.groups[input.value]) ? 'none' : '';
+    input.disabled = !(lastResult && lastResult.groups[input.value]);
+  });
+}
+downloadCombinedPdfBtn.addEventListener('click', async () => {
+  if (!lastResult) return;
+  const selected = Array.from(combinedPdfChoices.querySelectorAll('input:checked:not(:disabled)')).map(input => input.value);
+  if (!selected.length){combinedPdfError.style.display = 'block';return;}
+  combinedPdfError.style.display = 'none';
+  downloadCombinedPdfBtn.disabled = true;
+  downloadCombinedPdfBtn.textContent = 'Generando PDF combinado...';
+  try { await exportCutPdf(selected); }
+  catch(e){ console.error(e); alert('No se pudo generar el PDF combinado.'); }
+  finally { downloadCombinedPdfBtn.disabled = false; downloadCombinedPdfBtn.textContent = '⬇ Descargar PDF combinado'; }
+});
+
+// ---- Configuraciones guardadas ----
+
+async function getSavedConfigs(){
+  try{
+    const res = await localDB.get('configuraciones-guardadas').catch(() => null);
+    return res && res.value ? JSON.parse(res.value) : [];
+  } catch(e){ return []; }
+}
+
+async function setSavedConfigs(list){
+  try{ await localDB.set('configuraciones-guardadas', JSON.stringify(list)); } catch(e){}
+}
+
+function lockActiveConfigFields(cfg){
+  document.getElementById('barLength').value = cfg.barLength;
+  document.getElementById('kerf').value = cfg.kerf;
+  document.getElementById('hojasPorVentana').value = cfg.hojas;
+  document.getElementById('mallasPorVentana').value = cfg.mallas;
+  document.getElementById('traslapesPorVentana').value = cfg.traslapes;
+  document.getElementById('contramarcosPorVentana').value = cfg.contramarcos;
+  CFG_FIELD_IDS.forEach(id => document.getElementById(id).setAttribute('readonly', 'true'));
+  cfgLockNote.style.display = 'block';
+}
+
+function unlockConfigFields(){
+  CFG_FIELD_IDS.forEach(id => document.getElementById(id).removeAttribute('readonly'));
+  cfgLockNote.style.display = 'none';
+}
+
+async function populateActiveConfigSelect(keepValue){
+  const configs = await getSavedConfigs();
+  const current = keepValue !== undefined ? keepValue : activeConfigSelect.value;
+  activeConfigSelect.innerHTML = '<option value="">Manual (editar campos abajo)</option>' +
+    configs.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const stillExists = configs.some(c => String(c.id) === String(current));
+  activeConfigSelect.value = stillExists ? current : '';
+  return configs;
+}
+
+activeConfigSelect.addEventListener('change', async () => {
+  const id = activeConfigSelect.value;
+  if (!id){
+    unlockConfigFields();
+  } else {
+    const configs = await getSavedConfigs();
+    const cfg = configs.find(c => String(c.id) === String(id));
+    if (cfg) lockActiveConfigFields(cfg);
+  }
+  saveDraft();
+});
+
+async function renderConfigList(){
+  const cfgList = document.getElementById('cfgList');
+  const configs = await getSavedConfigs();
+  if (configs.length === 0){
+    cfgList.innerHTML = '<p class="empty-note">Todavía no has guardado ninguna configuración.</p>';
+    return;
+  }
+  cfgList.innerHTML = '';
+  configs.forEach(cfg => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="hi-top"><span class="hi-name">${cfg.name}</span></div>
+      <div class="hi-stats">
+        <span>Lance: <b>${fmt(cfg.barLength)} m</b></span>
+        <span>Kerf: <b>${fmt(cfg.kerf)} m</b></span>
+        <span>Hojas: <b>${cfg.hojas}</b></span>
+        <span>Mallas: <b>${cfg.mallas}</b></span>
+        <span>Traslapes: <b>${cfg.traslapes}</b></span>
+        <span>Contramarcos: <b>${cfg.contramarcos}</b></span>
+      </div>
+      <div class="history-actions">
+        <button class="use-cfg-btn">Usar en Calcular</button>
+        <button class="del-cfg-btn">Eliminar</button>
+      </div>
+    `;
+    div.querySelector('.use-cfg-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await populateActiveConfigSelect(cfg.id);
+      activeConfigSelect.value = cfg.id;
+      lockActiveConfigFields(cfg);
+      saveDraft();
+      document.querySelector('.tab[data-tab="calc"]').click();
+    });
+    div.querySelector('.del-cfg-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const wasActive = String(activeConfigSelect.value) === String(cfg.id);
+      const newList = configs.filter(c => c.id !== cfg.id);
+      await setSavedConfigs(newList);
+      await populateActiveConfigSelect(wasActive ? '' : undefined);
+      if (wasActive) unlockConfigFields();
+      renderConfigList();
+    });
+    cfgList.appendChild(div);
+  });
+}
+
+document.getElementById('saveCfgBtn').addEventListener('click', async () => {
+  const name = document.getElementById('newCfgName').value.trim();
+  if (!name){
+    alert('Ponle un nombre a la configuración antes de guardarla.');
+    return;
+  }
+  const cfg = {
+    id: Date.now(),
+    name,
+    barLength: parseFloat(document.getElementById('newCfgBarLength').value) || 5.80,
+    kerf: parseFloat(document.getElementById('newCfgKerf').value) || 0,
+    hojas: parseInt(document.getElementById('newCfgHojas').value, 10) || 0,
+    mallas: parseInt(document.getElementById('newCfgMallas').value, 10) || 0,
+    traslapes: parseInt(document.getElementById('newCfgTraslapes').value, 10) || 0,
+    contramarcos: parseInt(document.getElementById('newCfgContramarcos').value, 10) || 0
+  };
+  const configs = await getSavedConfigs();
+  configs.push(cfg);
+  await setSavedConfigs(configs);
+
+  document.getElementById('newCfgName').value = '';
+  document.getElementById('newCfgBarLength').value = 5.80;
+  document.getElementById('newCfgKerf').value = 0;
+  document.getElementById('newCfgHojas').value = 2;
+  document.getElementById('newCfgMallas').value = 1;
+  document.getElementById('newCfgTraslapes').value = 2;
+  document.getElementById('newCfgContramarcos').value = 1;
+
+  await populateActiveConfigSelect();
+  renderConfigList();
+});
+
+// ---- Tipos de ventana (fórmulas auto) ----
+
+const DEFAULT_TIPO = {
+  id: 'default', name: '80-4.5',
+  divAnchoH: 2, restaAnchoH: 0, restaAltoH: 0.077, restaAnchoM: 0.01, restaAltoM: 0, restaTraslape: 0.003,
+  sinRiel: false, builtIn: true
+};
+const BUILTIN_TIPOS = [DEFAULT_TIPO,
+  {id:'builtin-80-5',name:'80-5',divAnchoH:2,restaAnchoH:0,restaAltoH:0.087,restaAnchoM:0.01,restaAltoM:0,restaTraslape:0.003,sinRiel:false,builtIn:true},
+  {id:'builtin-puerta-86-80-4-5-2-hojas',name:'Puerta 86 80-4.5 2 Hojas',divAnchoH:2,restaAnchoH:-0.014,restaAltoH:0.077,restaAnchoM:0.01,restaAltoM:0,restaTraslape:0.003,sinRiel:false,builtIn:true},
+  {id:'builtin-puerta-86-80-5-2-hojas',name:'Puerta 86 80-5 2 Hojas',divAnchoH:2,restaAnchoH:-0.014,restaAltoH:0.087,restaAnchoM:0.01,restaAltoM:0,restaTraslape:0.003,sinRiel:false,builtIn:true},
+  {id:'builtin-lite',name:'Lite',divAnchoH:2,restaAnchoH:0,restaAltoH:0.072,restaAnchoM:0.01,restaAltoM:0,restaTraslape:0.003,sinRiel:true,builtIn:true},
+  {id:'builtin-4-hojas-80-4-5',name:'4 Hojas 80-4.5',divAnchoH:4,restaAnchoH:-0.018,restaAltoH:0.077,restaAnchoM:0.01,restaAltoM:0,restaTraslape:0.003,sinRiel:false,builtIn:true},
+  {id:'builtin-4-hojas-80-5',name:'4 Hojas 80-5',divAnchoH:4,restaAnchoH:-0.018,restaAltoH:0.087,restaAnchoM:0.01,restaAltoM:0,restaTraslape:0.003,sinRiel:false,builtIn:true},
+  {id:'builtin-4-hojas-puerta-86-80-4-5',name:'4 Hojas puerta 86 80-4.5',divAnchoH:4,restaAnchoH:-0.028,restaAltoH:0.077,restaAnchoM:0.01,restaAltoM:0,restaTraslape:0.003,sinRiel:false,builtIn:true},
+  {id:'builtin-4-hojas-puerta-86-80-5',name:'4 Hojas puerta 86 80-5',divAnchoH:4,restaAnchoH:-0.028,restaAltoH:0.087,restaAnchoM:0.01,restaAltoM:0,restaTraslape:0.003,sinRiel:false,builtIn:true}
+];
+let tiposVentana = [...BUILTIN_TIPOS];
+let editingTipoId = null;
+
+async function getSavedTipos(){
+  try{
+    const res = await localDB.get('tipos-ventana').catch(() => null);
+    const parsed = res && res.value ? JSON.parse(res.value) : [];
+    if (!Array.isArray(parsed)) return [];
+    // Evitar que tipos guardados en versiones anteriores dupliquen las predeterminadas.
+    const normalize = value => String(value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+    const seenIds = new Set(BUILTIN_TIPOS.map(t => String(t.id)));
+    const seenNames = new Set(BUILTIN_TIPOS.map(t => normalize(t.name)));
+    return parsed.filter(t => {
+      if (!t || !t.name) return false;
+      const id = String(t.id);
+      const name = normalize(t.name);
+      if (seenIds.has(id) || seenNames.has(name)) return false;
+      seenIds.add(id);
+      seenNames.add(name);
+      return true;
+    });
+  } catch(e){ return []; }
+}
+async function setSavedTipos(list){
+  await localDB.set('tipos-ventana', JSON.stringify(list));
+}
+async function refreshTiposCache(){
+  tiposVentana = [...BUILTIN_TIPOS, ...(await getSavedTipos())];
+}
+function fillTipoEditor(t){
+  document.getElementById('newTipoName').value=t.name||'';
+  for(const [field,id] of Object.entries({divAnchoH:'newTipoDivAnchoH',restaAnchoH:'newTipoRestaAnchoH',restaAltoH:'newTipoRestaAltoH',restaAnchoM:'newTipoRestaAnchoM',restaAltoM:'newTipoRestaAltoM',restaTraslape:'newTipoRestaTraslape'})) document.getElementById(id).value=t[field]??0;
+  document.getElementById('newTipoSinRiel').checked=!!t.sinRiel;
+  document.getElementById('newTipoPreset').checked=!!t.presetDraft;
+}
+function resetTipoEditor(){
+  editingTipoId=null;
+  fillTipoEditor({name:'',divAnchoH:2,restaAnchoH:0,restaAltoH:0.077,restaAnchoM:0.01,restaAltoM:0,restaTraslape:0.003,sinRiel:false,presetDraft:false});
+  document.getElementById('tipoEditorTitle').textContent='Nuevo tipo de ventana / predeterminada';
+  document.getElementById('saveTipoBtn').textContent='Guardar tipo de ventana';
+  document.getElementById('cancelTipoEditBtn').style.display='none';
+}
+document.getElementById('cancelTipoEditBtn').addEventListener('click',resetTipoEditor);
+
+function getSelectedTipo(tr){
+  const id = tr.querySelector('.f-tipo').value;
+  return tiposVentana.find(t => String(t.id) === String(id)) || DEFAULT_TIPO;
+}
+
+function populateTipoSelectOptions(select, selectedId){
+  select.innerHTML = tiposVentana.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  const exists = tiposVentana.some(t => String(t.id) === String(selectedId));
+  select.value = exists ? selectedId : 'default';
+}
+
+function refreshAllRowTipoSelects(){
+  winBody.querySelectorAll('tr').forEach(tr => {
+    const select = tr.querySelector('.f-tipo');
+    const current = select.value;
+    populateTipoSelectOptions(select, current);
+  });
+}
+
+async function renderTipoList(){
+  const tipoList=document.getElementById('tipoList');
+  const saved=await getSavedTipos();
+  tipoList.innerHTML='';
+  [...BUILTIN_TIPOS,...saved].forEach(t=>{
+    const div=document.createElement('div');
+    div.className='history-item';
+    const top=document.createElement('div');top.className='hi-top';
+    const name=document.createElement('span');name.className='hi-name';name.textContent=t.name;
+    const tag=document.createElement('span');tag.style.cssText='font-size:.7rem;color:#64748b';tag.textContent=t.builtIn?'🔒 Predeterminada fija':t.presetDraft?'★ Predeterminada propuesta':'Personalizada';
+    top.append(name,tag);div.appendChild(top);
+    const stats=document.createElement('div');stats.className='hi-stats';
+    const formulas=[['Ancho H',`Ancho ÷ ${fmt(t.divAnchoH)} ${Number(t.restaAnchoH)<0?'+':'−'} ${fmt(Math.abs(Number(t.restaAnchoH)||0))}`],['Alto H',`Alto − ${fmt(t.restaAltoH)}`],['Ancho M',`Ancho H − ${fmt(t.restaAnchoM)}`],['Alto M',`Alto H − ${fmt(t.restaAltoM)}`],['Traslape',`Alto H − ${fmt(t.restaTraslape)}`]];
+    for(const [label,val] of formulas){const sp=document.createElement('span');sp.textContent=`${label}: ${val}`;stats.appendChild(sp)}
+    if(t.sinRiel){const sp=document.createElement('span');sp.textContent='🚫 No lleva riel';stats.appendChild(sp)}
+    div.appendChild(stats);
+    const actions=document.createElement('div');actions.className='history-actions';
+    const edit=document.createElement('button');edit.textContent=t.builtIn?'Duplicar y editar':'Editar todos los campos';
+    edit.addEventListener('click',()=>{
+      editingTipoId=t.builtIn?null:t.id;
+      fillTipoEditor({...t,name:t.builtIn?t.name+' (variante)':t.name,presetDraft:t.builtIn?true:t.presetDraft});
+      document.getElementById('tipoEditorTitle').textContent=t.builtIn?'Crear variante de '+t.name:'Editar '+t.name;
+      document.getElementById('saveTipoBtn').textContent=editingTipoId?'Guardar cambios':'Guardar nueva variante';
+      document.getElementById('cancelTipoEditBtn').style.display='inline-block';
+      document.getElementById('tipoEditorTitle').scrollIntoView({behavior:'smooth',block:'start'});
+    });actions.appendChild(edit);
+    if(!t.builtIn){const del=document.createElement('button');del.textContent='Eliminar';del.addEventListener('click',async()=>{
+      if(!confirm('¿Eliminar este tipo de ventana?'))return;
+      await setSavedTipos((await getSavedTipos()).filter(x=>String(x.id)!==String(t.id)));
+      await refreshTiposCache();refreshAllRowTipoSelects();renderTipoList();
+      if(String(editingTipoId)===String(t.id))resetTipoEditor();
+    });actions.appendChild(del)}
+    div.appendChild(actions);tipoList.appendChild(div);
+  });
+}
+
+document.getElementById('saveTipoBtn').addEventListener('click',async()=>{
+  const name=document.getElementById('newTipoName').value.trim();
+  if(!name){alert('Escribe el nombre del tipo de ventana.');return}
+  const ids={divAnchoH:'newTipoDivAnchoH',restaAnchoH:'newTipoRestaAnchoH',restaAltoH:'newTipoRestaAltoH',restaAnchoM:'newTipoRestaAnchoM',restaAltoM:'newTipoRestaAltoM',restaTraslape:'newTipoRestaTraslape'};
+  const values={};
+  for(const [field,id] of Object.entries(ids)){
+    const input=document.getElementById(id);
+    if(input.value.trim()==='' || !Number.isFinite(Number(input.value))){alert('Completa correctamente '+field);input.focus();return}
+    values[field]=Number(input.value);
+  }
+  if(values.divAnchoH<=0){alert('El divisor de Ancho H debe ser mayor que cero.');return}
+  const saved=await getSavedTipos();
+  if([...BUILTIN_TIPOS,...saved].some(t=>t.name.toLowerCase()===name.toLowerCase() && String(t.id)!==String(editingTipoId))){alert('Ya existe un tipo con ese nombre. Usa otro nombre.');return}
+  const tipo={id:editingTipoId??('custom-'+Date.now()),name,...values,sinRiel:document.getElementById('newTipoSinRiel').checked,presetDraft:document.getElementById('newTipoPreset').checked};
+  const idx=saved.findIndex(t=>String(t.id)===String(editingTipoId));
+  if(idx>=0)saved[idx]=tipo;else saved.push(tipo);
+  try{await setSavedTipos(saved)}catch(e){alert('No se pudo guardar en este navegador. '+e.message);return}
+  await refreshTiposCache();refreshAllRowTipoSelects();renderTipoList();resetTipoEditor();
+});
+
+document.getElementById('exportTiposBtn').addEventListener('click',async()=>{
+  const payload={version:1,description:'Tipos de ventana para integrar al Optimizador de Cortes',predeterminadasActuales:BUILTIN_TIPOS,tiposCreados:await getSavedTipos()};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='configuraciones-ventanas-para-integrar.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+
+async function renderHistory(){
+  const historyList = document.getElementById('historyList');
+  historyList.innerHTML = '<p class="empty-note">Cargando...</p>';
+  try{
+    const listRes = await localDB.get('trabajos-historial').catch(() => null);
+    const list = listRes && listRes.value ? JSON.parse(listRes.value) : [];
+    if (list.length === 0){
+      historyList.innerHTML = '<p class="empty-note">Todavía no has guardado ningún trabajo.</p>';
+      return;
+    }
+    historyList.innerHTML = '';
+    list.forEach(job => {
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      const statsHtml = job.groupSummary.map(g => `<span>${g.name}: <b>${g.bars}</b></span>`).join('');
+      div.innerHTML = `
+        <div class="hi-top"><span class="hi-name">${job.name}</span><span class="hi-date">${job.date}</span></div>
+        <div class="hi-stats">${statsHtml}<span>Total: <b>${job.totalBars} lances</b></span></div>
+        <div class="history-actions">
+          <button class="load-btn">Volver a abrir</button>
+          <button class="del-hist-btn">Eliminar</button>
+        </div>
+      `;
+      div.querySelector('.load-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        loadJob(job);
+      });
+      div.querySelector('.del-hist-btn').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const newList = list.filter(j => j.id !== job.id);
+        await localDB.set('trabajos-historial', JSON.stringify(newList));
+        renderHistory();
+      });
+      historyList.appendChild(div);
+    });
+  } catch(e){
+    historyList.innerHTML = '<p class="empty-note">No se pudo cargar el historial.</p>';
+  }
+}
+
+async function loadJob(job){
+  activeConfigSelect.value = '';
+  unlockConfigFields();
+  document.getElementById('barLength').value = job.cfg.barLength;
+  document.getElementById('kerf').value = job.cfg.kerf;
+  document.getElementById('hojasPorVentana').value = job.cfg.hojas;
+  document.getElementById('mallasPorVentana').value = job.cfg.mallas;
+  document.getElementById('traslapesPorVentana').value = job.cfg.traslapes;
+  document.getElementById('contramarcosPorVentana').value = job.cfg.contramarcos ?? 1;
+  winBody.innerHTML = '';
+  job.rows.forEach(r => addWinRow(r));
+  document.querySelector('.tab[data-tab="calc"]').click();
+  const result = computeAll(job.rows, job.cfg);
+  result.barLength = job.cfg.barLength;
+  await refreshMaterialsCache();
+  await loadManualMaterials();
+  result.materialsResult = getManualMaterialsForPrint();
+  lastResult = result; lastCfg = job.cfg; lastRows = job.rows;
+  renderResults(result);
+  jobNameInput.value = job.name;
+}
+
+async function saveDraft(){
+  try{
+    const draft = { cfg: readConfig(), rows: readRows(), activeConfigId: activeConfigSelect.value || null };
+    await localDB.set('trabajo-borrador', JSON.stringify(draft));
+  } catch(e){}
+}
+
+async function loadDraft(){
+  await refreshTiposCache();
+  await populateActiveConfigSelect();
+  await refreshMaterialsCache();
+  try{
+    {
+      const res = await localDB.get('trabajo-borrador');
+      if (res && res.value){
+        const draft = JSON.parse(res.value);
+        if (draft.activeConfigId){
+          const configs = await getSavedConfigs();
+          const cfg = configs.find(c => String(c.id) === String(draft.activeConfigId));
+          if (cfg){
+            activeConfigSelect.value = cfg.id;
+            lockActiveConfigFields(cfg);
+          }
+        } else if (draft.cfg){
+          document.getElementById('barLength').value = draft.cfg.barLength ?? 5.80;
+          document.getElementById('kerf').value = draft.cfg.kerf ?? 0;
+          document.getElementById('hojasPorVentana').value = draft.cfg.hojas ?? 2;
+          document.getElementById('mallasPorVentana').value = draft.cfg.mallas ?? 1;
+          document.getElementById('traslapesPorVentana').value = draft.cfg.traslapes ?? 2;
+          document.getElementById('contramarcosPorVentana').value = draft.cfg.contramarcos ?? 1;
+        }
+        if (draft.rows && draft.rows.length){
+          draft.rows.forEach(r => addWinRow(r));
+          return;
+        }
+      }
+    }
+  } catch(e){}
+  addWinRow({ ancho:2.00, alto:2.10, anchoH:1.00, altoH:2.02, anchoM:0.99, altoM:2.02, traslape:2.02, qty:1 });
+}
+
+loadDraft();
+loadGlassDraft();
+applyInputModes();
+</script>
+</body>
+</html>
 
