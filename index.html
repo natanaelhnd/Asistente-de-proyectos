@@ -70,6 +70,17 @@
   table.win select.f-tipo{ width:100%; min-width:150px; border:none; border-bottom:1px solid var(--border); background:none; font-family:'Space Grotesk', sans-serif; font-size:0.82rem; color:var(--ink); padding:6px 2px; outline:none; }
   table.win select.f-tipo:focus{ border-bottom-color:var(--steel); }
   table.win input.qty-input{ text-align:center; }
+  #manualWindowCard table.win{ min-width:350px; }
+  #manualWindowCard:has(#showWindowDetails:checked) table.win{ min-width:890px; }
+  #manualWindowCard:not(:has(#showWindowDetails:checked)) .auto-dimension{ display:none; }
+  #manualWindowCard .f-tipo{ min-width:100px; }
+  .window-row-actions{ white-space:nowrap; }
+  .window-row-actions button{ min-width:28px; min-height:32px; }
+  .window-options{ margin:0 0 12px; }
+  .paste-measures{ margin-top:12px; font-size:.85rem; }
+  .paste-measures summary{ cursor:pointer; font-weight:600; }
+  .paste-measures textarea{ display:block; width:100%; min-height:100px; margin:8px 0; padding:8px; font:inherit; resize:vertical; }
+  #pasteMeasureStatus{ white-space:pre-line; }
   .del-btn{ background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:1rem; line-height:1; padding:4px 6px; border-radius:6px; }
   .del-btn:hover{ background:#F2E4DC; color:var(--orange); }
 
@@ -215,7 +226,14 @@
   .project-edit-sheet .minuta-heading{background:#e9eef4;padding:0}
   .project-edit-sheet .minuta-heading input{font-weight:700;text-align:center;font-size:.84rem;min-height:32px}
   .project-edit-sheet .manual-mat-delete{font-size:1rem;min-width:24px;border-radius:3px}
-@media print{.tabs,header,.card:not(#linkedProjectInfo),#calcBtn,#printLinked,#cutSheets,footer{display:none!important} .wrap{max-width:none}#results{display:block!important}.bar-block{break-inside:avoid}}
+@media print{
+  .tabs,header,.card:not(#linkedProjectInfo),#calcBtn,#printLinked,#cutSheets,footer,#printArea{display:none!important}
+  body{background:#fff;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  .wrap{max-width:none;padding:0}
+  #results{display:block!important}
+  #results .bar-block{page-break-inside:avoid;break-inside:avoid}
+  #results .bar-title,#results .group-title{break-after:avoid}
+}
 </style>
 </head>
 <body>
@@ -274,17 +292,29 @@
 <div class="card" id="manualWindowCard">
 <h2>Ventanas del trabajo (referencia de medidas) <span class="chev" id="winChev">▲</span></h2>
 <div id="winBodyWrap">
+<label class="checkbox-row window-options"><input id="showWindowDetails" type="checkbox"/> Mostrar medidas automáticas</label>
 <div class="tbl-scroll">
 <table class="win">
 <thead>
 <tr>
-<th>Tipo</th><th>Ancho</th><th>Alto</th><th>Ancho H (auto)</th><th>Alto H (auto)</th><th>Ancho M (auto)</th><th>Alto M (auto)</th><th>Traslape (auto)</th><th>Cant.</th><th></th>
+<th>Tipo</th><th>Ancho (m)</th><th>Alto (m)</th><th>Cant.</th><th class="auto-dimension">Ancho H</th><th class="auto-dimension">Alto H</th><th class="auto-dimension">Ancho M</th><th class="auto-dimension">Alto M</th><th class="auto-dimension">Traslape</th><th></th>
 </tr>
 </thead>
 <tbody id="winBody"></tbody>
 </table>
 </div>
 <button class="add-row-btn" id="addRowBtn">+ Agregar tamaño de ventana</button>
+<details class="paste-measures" id="pasteMeasures">
+<summary>Pegar varias medidas</summary>
+<p>Copia de Excel las columnas de ancho, alto y cantidad. Usa metros. Si omites la cantidad, se agrega una unidad.</p>
+<p><label for="measurePhoto">Leer una foto o captura de la cotización</label></p>
+<input id="measurePhoto" type="file" accept="image/*"/>
+<p id="measurePhotoStatus" role="status"></p>
+<label for="pasteMeasureInput">Medidas copiadas</label>
+<textarea id="pasteMeasureInput" placeholder="1.20 × 2.10 × 3&#10;0.90 × 1.50"></textarea>
+<button class="save-btn" id="pasteMeasureBtn" type="button">Agregar medidas</button>
+<p id="pasteMeasureStatus" role="status"></p>
+</details>
 </div>
 </div>
 <div class="card" id="linkedProjectInfo" style="display:none;background:#eaf4ff;border-color:#a7c7e7"></div>
@@ -536,19 +566,25 @@ function addWinRow(data){
   data = data || {};
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><select class="f-tipo"></select></td>
-    <td><input type="number" step="0.001" class="f-ancho" value="${data.ancho ?? ''}" placeholder="2.00"></td>
-    <td><input type="number" step="0.001" class="f-alto" value="${data.alto ?? ''}" placeholder="2.10"></td>
-    <td><input type="number" step="0.001" class="f-anchoH" value="${data.anchoH ?? ''}" readonly tabindex="-1" title="Calculado automáticamente"></td>
-    <td><input type="number" step="0.001" class="f-altoH" value="${data.altoH ?? ''}" readonly tabindex="-1" title="Calculado automáticamente"></td>
-    <td><input type="number" step="0.001" class="f-anchoM" value="${data.anchoM ?? ''}" readonly tabindex="-1" title="Calculado automáticamente"></td>
-    <td><input type="number" step="0.001" class="f-altoM" value="${data.altoM ?? ''}" readonly tabindex="-1" title="Calculado automáticamente"></td>
-    <td><input type="number" step="0.001" class="f-traslape" value="${data.traslape ?? ''}" readonly tabindex="-1" title="Calculado automáticamente"></td>
-    <td><input type="number" step="1" min="1" class="f-qty qty-input" value="${data.qty ?? 1}"></td>
-    <td><button class="del-btn" title="Quitar">✕</button></td>
+    <td><select class="f-tipo" aria-label="Tipo de ventana"></select></td>
+    <td><input type="number" step="0.001" class="f-ancho" aria-label="Ancho en metros" placeholder="2.00"></td>
+    <td><input type="number" step="0.001" class="f-alto" aria-label="Alto en metros" placeholder="2.10"></td>
+    <td><input type="number" step="1" min="1" class="f-qty qty-input" aria-label="Cantidad"></td>
+    <td class="auto-dimension"><input type="number" class="f-anchoH" aria-label="Ancho de hoja" readonly tabindex="-1"></td>
+    <td class="auto-dimension"><input type="number" class="f-altoH" aria-label="Alto de hoja" readonly tabindex="-1"></td>
+    <td class="auto-dimension"><input type="number" class="f-anchoM" aria-label="Ancho de malla" readonly tabindex="-1"></td>
+    <td class="auto-dimension"><input type="number" class="f-altoM" aria-label="Alto de malla" readonly tabindex="-1"></td>
+    <td class="auto-dimension"><input type="number" class="f-traslape" aria-label="Traslape" readonly tabindex="-1"></td>
+    <td class="window-row-actions">
+      <button type="button" class="del-btn duplicate-window" title="Duplicar fila" aria-label="Duplicar fila">⧉</button>
+      <button type="button" class="del-btn remove-window" title="Quitar fila" aria-label="Quitar fila">✕</button>
+    </td>
   `;
 
   populateTipoSelectOptions(tr.querySelector('.f-tipo'), data.tipoId);
+  tr.querySelector('.f-ancho').value = data.ancho ?? '';
+  tr.querySelector('.f-alto').value = data.alto ?? '';
+  tr.querySelector('.f-qty').value = data.qty ?? 1;
 
   const recalcRow = () => {
     const ancho = parseFloat(tr.querySelector('.f-ancho').value) || 0;
@@ -569,7 +605,20 @@ function addWinRow(data){
     tr.querySelector('.f-traslape').value = alto > 0 ? traslape.toFixed(3) : '';
   };
 
-  tr.querySelector('.del-btn').addEventListener('click', () => {
+  tr.querySelector('.duplicate-window').addEventListener('click', () => {
+    const copy = addWinRow({
+      tipoId: tr.querySelector('.f-tipo').value,
+      ancho: tr.querySelector('.f-ancho').value,
+      alto: tr.querySelector('.f-alto').value,
+      qty: tr.querySelector('.f-qty').value
+    });
+    tr.after(copy);
+    afterCalcInvalidate();
+    saveDraft();
+    copy.querySelector('.f-ancho').select();
+  });
+
+  tr.querySelector('.remove-window').addEventListener('click', () => {
     tr.remove();
     saveDraft();
     afterCalcInvalidate();
@@ -593,6 +642,7 @@ function addWinRow(data){
   winBody.appendChild(tr);
   applyInputModes(tr);
   recalcRow();
+  return tr;
 }
 
 function afterCalcInvalidate(){
@@ -608,7 +658,160 @@ CFG_FIELD_IDS.forEach(id => document.getElementById(id).addEventListener('input'
   saveDraft();
 }));
 
-addRowBtn.addEventListener('click', () => { addWinRow(); afterCalcInvalidate(); saveDraft(); });
+addRowBtn.addEventListener('click', () => {
+  const row = addWinRow();
+  afterCalcInvalidate();
+  saveDraft();
+  row.querySelector('.f-ancho').focus();
+});
+
+function parsePastedMeasures(text){
+  const rows = [];
+  const errors = [];
+  let first = true;
+  for (const [index, line] of text.split(/\r\n?|\n/).entries()){
+    if (!line.trim()) continue;
+    const fields = line.split(line.includes('\t') ? /\t/ : /[;×xX]/).map(value => value.trim());
+    const header = first && /^ancho\b/i.test(fields[0]) && /^alto\b/i.test(fields[1] || '');
+    first = false;
+    if (header) continue;
+    const positiveMeasure = value => /^\d+(?:[.,]\d+)?$/.test(value) ? Number(value.replace(',', '.')) : NaN;
+    const ancho = positiveMeasure(fields[0]);
+    const alto = positiveMeasure(fields[1] || '');
+    const quantity = fields[2] || '1';
+    const qty = /^\d+$/.test(quantity) ? Number(quantity) : NaN;
+    if (fields.length > 3 || !Number.isFinite(ancho) || ancho <= 0 ||
+        !Number.isFinite(alto) || alto <= 0 || !Number.isSafeInteger(qty) || qty <= 0){
+      errors.push(index + 1);
+      continue;
+    }
+    rows.push({ancho, alto, qty});
+  }
+  return {rows, errors};
+}
+
+const pasteMeasureInput = document.getElementById('pasteMeasureInput');
+const pasteMeasureStatus = document.getElementById('pasteMeasureStatus');
+const measurePhoto = document.getElementById('measurePhoto');
+const measurePhotoStatus = document.getElementById('measurePhotoStatus');
+const pasteMeasureBtn = document.getElementById('pasteMeasureBtn');
+
+function measureRowsFromPhoto(words){
+  const tokens = words.map(({text, bbox}) => ({
+    text: text.trim(),
+    x: bbox.x0,
+    y: (bbox.y0 + bbox.y1) / 2,
+    height: bbox.y1 - bbox.y0
+  })).filter(word => word.text && word.height > 0);
+  const dimensions = /^(\d+[.,]\d{1,4})[x×](\d+[.,]\d{1,4})$/i;
+  const itemCode = /^([a-z]{1,3})[-–‐](\d+)$/i;
+  const rows = [];
+  const omitted = [];
+  const used = new Set();
+  for (const token of tokens){
+    if (!/^\d+[.,]\d{1,4}(?:[x×]|$)/i.test(token.text)) continue;
+    const line = tokens.filter(word => Math.abs(word.y - token.y) <= token.height * 0.65)
+      .sort((a, b) => a.x - b.x);
+    const start = line.indexOf(token);
+    const parts = line.slice(start, start + 3).map(word => word.text);
+    const match = parts[0].match(dimensions) ||
+      parts.slice(0, 2).join('').match(dimensions) || parts.join('').match(dimensions);
+    if (!match || used.has(token)) continue;
+    const prefix = line.slice(0, start);
+    const itemIndex = prefix.findIndex(word => itemCode.test(word.text));
+    const item = prefix[itemIndex]?.text;
+    if (item && itemCode.exec(item)[1].toUpperCase() !== 'V'){
+      omitted.push(item);
+    } else {
+      const quantity = prefix[itemIndex + 1]?.text;
+      rows.push({y: token.y, text: [match[1], match[2],
+        item && /^\d+$/.test(quantity || '') ? quantity : '?'].join('\t')});
+    }
+    used.add(token);
+  }
+  rows.sort((a, b) => a.y - b.y);
+  return {rows: rows.map(row => row.text), omitted};
+}
+
+function loadPhotoReader(){
+  if (window.Tesseract) return Promise.resolve(window.Tesseract);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    script.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('OCR no disponible'));
+    script.onerror = () => { script.remove(); reject(new Error('OCR no disponible')); };
+    document.head.appendChild(script);
+  });
+}
+
+async function readMeasurePhoto(file){
+  if (!file || measurePhoto.disabled) return;
+  measurePhoto.disabled = true;
+  pasteMeasureBtn.disabled = true;
+  pasteMeasureInput.readOnly = true;
+  measurePhotoStatus.textContent = 'Leyendo imagen…';
+  let worker;
+  try {
+    const reader = await loadPhotoReader();
+    worker = await reader.createWorker('spa');
+    await worker.setParameters({tessedit_pageseg_mode: reader.PSM.SPARSE_TEXT});
+    const {data} = await worker.recognize(file);
+    const {rows, omitted} = measureRowsFromPhoto(data.words || []);
+    const skipped = omitted.length ? ' Fuera de la tabla de ventanas: ' + omitted.join(', ') + '.' : '';
+    if (rows.length){
+      pasteMeasureInput.value = [pasteMeasureInput.value.trim(), ...rows].filter(Boolean).join('\n');
+      pasteMeasureStatus.textContent = '';
+    }
+    measurePhotoStatus.textContent = (rows.length
+      ? 'Filas detectadas: ' + rows.length + '. Revisa el ancho, el alto y la cantidad. Reemplaza cada ? antes de agregar.'
+      : 'No encontré medidas. Prueba con una foto nítida de la tabla, incluyendo las columnas de ítem y cantidad.') + skipped;
+  } catch (error){
+    console.error(error);
+    measurePhotoStatus.textContent = 'No se pudo leer la imagen. Revisa tu conexión e intenta con otra foto o captura.';
+  } finally {
+    try { await worker?.terminate(); }
+    finally {
+      measurePhoto.disabled = false;
+      measurePhoto.value = '';
+      pasteMeasureBtn.disabled = false;
+      pasteMeasureInput.readOnly = false;
+    }
+  }
+}
+
+measurePhoto.addEventListener('change', () => readMeasurePhoto(measurePhoto.files[0]));
+document.getElementById('pasteMeasures').addEventListener('paste', event => {
+  const image = Array.from(event.clipboardData?.items || []).find(item => item.type.startsWith('image/'));
+  if (!image) return;
+  event.preventDefault();
+  readMeasurePhoto(image.getAsFile());
+});
+
+pasteMeasureBtn.addEventListener('click', () => {
+  const {rows, errors} = parsePastedMeasures(pasteMeasureInput.value);
+  if (errors.length){
+    const listed = errors.slice(0, 12).join(', ');
+    pasteMeasureStatus.textContent = 'Revisa las líneas ' + listed +
+      (errors.length > 12 ? ' y ' + (errors.length - 12) + ' más' : '') +
+      '. Cada línea necesita un ancho, un alto y, si la incluyes, una cantidad entera positiva.';
+    return;
+  }
+  if (!rows.length){
+    pasteMeasureStatus.textContent = 'Pega al menos una medida.';
+    return;
+  }
+  const tipoId = winBody.querySelector('tr:last-child .f-tipo')?.value;
+  const onlyRow = winBody.rows.length === 1 ? winBody.rows[0] : null;
+  if (onlyRow && ['.f-ancho', '.f-alto'].every(field => !onlyRow.querySelector(field).value &&
+      !onlyRow.querySelector(field).validity.badInput) && onlyRow.querySelector('.f-qty').value === '1'){
+    onlyRow.remove();
+  }
+  rows.forEach(row => addWinRow({...row, tipoId}));
+  afterCalcInvalidate();
+  saveDraft();
+  pasteMeasureInput.value = '';
+  pasteMeasureStatus.textContent = rows.length === 1 ? 'Se agregó 1 fila.' : 'Se agregaron ' + rows.length + ' filas.';
+});
 
 function readConfig(){
   return {
@@ -1644,7 +1847,8 @@ async function exportCutPdf(groupName = null){
     if (lastResult !== exportResult) return;
     if(lastResult) lastResult.materialsResult = getManualMaterialsForPrint();
     printArea.innerHTML = buildPrintHTML(groupName);
-    printArea.style.padding = '0';
+    await document.fonts.ready;
+    if (lastResult !== exportResult) return;
     const {jsPDF} = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
     const margin = 10;
@@ -1652,7 +1856,8 @@ async function exportCutPdf(groupName = null){
     const pageH = pdf.internal.pageSize.getHeight();
     const usableW = pageW - margin * 2;
     const usableH = pageH - margin * 2;
-    const contentWpx = 760;
+    const printStyle = getComputedStyle(printArea);
+    const contentWpx = printArea.clientWidth - parseFloat(printStyle.paddingLeft) - parseFloat(printStyle.paddingRight);
     const maxHpx = usableH * contentWpx / usableW;
     // Un contenedor por página, con las mismas dimensiones y estilos del original.
     const pages = [];
@@ -1660,7 +1865,7 @@ async function exportCutPdf(groupName = null){
     const newPage = () => {
       page = document.createElement('div');
       page.className = 'pdf-cut-page';
-      page.style.cssText = 'width:760px;background:#fff;box-sizing:border-box;padding:0;display:flow-root;';
+      page.style.cssText = 'background:#fff;box-sizing:border-box;padding:0;display:flow-root;';
       pages.push(page);
       pageHeight = 0;
     };
@@ -1690,8 +1895,9 @@ async function exportCutPdf(groupName = null){
       printArea.appendChild(pages[i]);
       const canvas = await html2canvas(pages[i], {scale:2, backgroundColor:'#ffffff'});
       if(i>0) pdf.addPage();
-      const imageH = canvas.height * usableW / canvas.width;
-      pdf.addImage(canvas.toDataURL('image/png'),'PNG',margin,margin,usableW,imageH);
+      const imageScale = Math.min(usableW / canvas.width, usableH / canvas.height);
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin,
+        canvas.width * imageScale, canvas.height * imageScale);
       pages[i].remove();
     }
     const jobSlug = (jobNameInput.value.trim() || 'trabajo').replace(/[^a-z0-9áéíóúñ_-]+/gi,'-');
